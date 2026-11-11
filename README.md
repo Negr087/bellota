@@ -66,7 +66,7 @@ src/
 ## ⚠️ Advertencias
 
 - Es software experimental de hackathon: **usá montos chicos**.
-- El ecash vive en el `localStorage` del navegador. Si borrás los datos del sitio sin haber exportado un respaldo, se pierde.
+- El ecash vive en el `localStorage` del navegador. Si borrás los datos del sitio, lo recuperás solo con tus 12 palabras: **anotalas**.
 - La semilla y las proofs se guardan sin cifrar en el navegador: cualquiera con acceso a tu navegador puede verlas.
 - Cashu es custodial: el mint guarda los sats. Elegí mints en los que confíes.
 
