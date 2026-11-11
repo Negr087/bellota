@@ -145,6 +145,36 @@ export function AmountInput({ value, onChange, max }) {
   )
 }
 
+// PWA install state: Android/desktop give us a prompt; iOS needs "Share → Add to Home Screen".
+export function useInstall() {
+  const standalone =
+    typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true)
+  const ios = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const [prompt, setPrompt] = useState(() => (typeof window !== 'undefined' ? window.__installPrompt : null))
+  useEffect(() => {
+    const on = () => setPrompt(window.__installPrompt)
+    const off = () => setPrompt(null)
+    window.addEventListener('bellota:installable', on)
+    window.addEventListener('appinstalled', off)
+    return () => {
+      window.removeEventListener('bellota:installable', on)
+      window.removeEventListener('appinstalled', off)
+    }
+  }, [])
+  return {
+    standalone,
+    ios: ios && !standalone,
+    canInstall: !!prompt && !standalone,
+    async install() {
+      if (!prompt) return
+      prompt.prompt()
+      await prompt.userChoice.catch(() => null)
+      window.__installPrompt = null
+      setPrompt(null)
+    },
+  }
+}
+
 export const fmtSats = (n) => Number(n || 0).toLocaleString('en-US')
 export const shortUrl = (u) => {
   try {

@@ -2,14 +2,79 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#FFE9C7" />
     <meta name="description" content="Bellota — a 3D Cashu wallet (ecash for Bitcoin): your sats are acorns that drop into a jar." />
     <title>Bellota · 3D Cashu wallet</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M12 26c0-10 9-16 20-16s20 6 20 16H12z' fill='%238B5A2B' stroke='%232B1D14' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M15 26h34c0 16-8 28-17 28S15 42 15 26z' fill='%23F5A524' stroke='%232B1D14' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M32 10V4' stroke='%232B1D14' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Bellota" />
+    <style>
+      /* Jar loader: shown from the very first paint (before any JS/CSS loads)
+         and kept by React until the 3D scene has drawn its first frame. */
+      html, body { background: #ffe9c7; }
+      .jar-loader {
+        position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 18px;
+        color: #2b1d14; font: 600 1.05rem 'Fredoka', 'Space Grotesk', system-ui, sans-serif;
+        transition: opacity .5s ease, visibility .5s; pointer-events: none;
+      }
+      .jar-loader.done { opacity: 0; visibility: hidden; }
+      .jl-jar { position: relative; width: 104px; height: 120px; }
+      .jl-glass {
+        position: absolute; inset: 22px 0 0; border: 4px solid #2b1d14; border-top: 0; border-radius: 0 0 30px 30px;
+        background: rgba(255, 255, 255, .45); box-shadow: 4px 4px 0 #2b1d14; overflow: hidden;
+      }
+      .jl-jar::before { /* rim */
+        content: ''; position: absolute; left: -6px; right: -6px; top: 14px; height: 14px; z-index: 1;
+        border: 4px solid #2b1d14; border-radius: 50%; background: #fffdf7;
+      }
+      .jl-acorn { position: absolute; top: -48px; width: 34px; height: 34px; z-index: 2; opacity: 0; animation: jl-drop 2.7s cubic-bezier(.45, 0, .7, 1) infinite; }
+      .jl-acorn.a1 { left: 12px; }
+      .jl-acorn.a2 { left: 58px; animation-delay: .45s; }
+      .jl-acorn.a3 { left: 35px; animation-delay: .9s; --land: 98px; }
+      @keyframes jl-drop {
+        0% { transform: translateY(0) rotate(-20deg); opacity: 0; }
+        8% { opacity: 1; }
+        40% { transform: translateY(var(--land, 128px)) rotate(10deg); animation-timing-function: ease-out; }
+        48% { transform: translateY(calc(var(--land, 128px) - 16px)) rotate(0); animation-timing-function: ease-in; }
+        56%, 82% { transform: translateY(var(--land, 128px)) rotate(4deg); opacity: 1; }
+        100% { transform: translateY(var(--land, 128px)) rotate(4deg); opacity: 0; }
+      }
+      .jl-text { margin: 0; min-height: 1.4em; }
+      .jl-text::after { content: ''; display: inline-block; width: 1.2em; text-align: left; animation: jl-dots 1.2s steps(4) infinite; }
+      @keyframes jl-dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+      @media (prefers-reduced-motion: reduce) {
+        .jl-acorn, .jl-text::after { animation: none; }
+        .jl-acorn { opacity: 1; transform: translateY(var(--land, 128px)); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Acorn drawing shared by the loader (outside #root so React keeps it) -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="acorn" viewBox="0 0 64 64">
+        <path d="M15 27h34c0 15-8 27-17 27S15 42 15 27z" fill="#F5A524" stroke="#2B1D14" stroke-width="4" stroke-linejoin="round" />
+        <ellipse cx="24" cy="36" rx="3" ry="7" fill="#fff" opacity=".6" transform="rotate(15 24 36)" />
+        <path d="M10 28c0-11 10-17 22-17s22 6 22 17c-8 3-36 3-44 0z" fill="#8B5A2B" stroke="#2B1D14" stroke-width="4" stroke-linejoin="round" />
+        <path d="M32 11c0-4 2-7 6-8" stroke="#2B1D14" stroke-width="4" stroke-linecap="round" fill="none" />
+      </symbol>
+    </svg>
+    <div id="root">
+      <div class="jar-loader" role="status">
+        <div class="jl-jar" aria-hidden="true">
+          <svg class="jl-acorn a1"><use href="#acorn" /></svg>
+          <svg class="jl-acorn a2"><use href="#acorn" /></svg>
+          <svg class="jl-acorn a3"><use href="#acorn" /></svg>
+          <div class="jl-glass"></div>
+        </div>
+        <p class="jl-text">Opening Bellota</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

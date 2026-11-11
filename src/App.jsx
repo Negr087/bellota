@@ -17,9 +17,31 @@ class SceneGuard extends Component {
   static getDerivedStateFromError() {
     return { failed: true }
   }
+  componentDidCatch() {
+    this.props.onFail?.()
+  }
   render() {
     return this.state.failed ? <div className="scene-loading">🫙 (your browser can't show 3D, but the wallet still works)</div> : this.props.children
   }
+}
+
+// Same markup as the static loader in index.html, so the hand-off from HTML to React is seamless.
+const LOADER_TEXT = { boot: 'Opening Bellota', code: 'Fetching the jar', physics: 'Warming up the physics' }
+function JarLoader({ stage }) {
+  const done = stage === 'ready' || stage === 'failed'
+  return (
+    <div className={`jar-loader${done ? ' done' : ''}`} role="status" aria-hidden={done}>
+      <div className="jl-jar" aria-hidden="true">
+        {['a1', 'a2', 'a3'].map((c) => (
+          <svg key={c} className={`jl-acorn ${c}`}>
+            <use href="#acorn" />
+          </svg>
+        ))}
+        <div className="jl-glass" />
+      </div>
+      <p className="jl-text">{LOADER_TEXT[stage] || ''}</p>
+    </div>
+  )
 }
 
 function useCountUp(target) {
@@ -57,6 +79,12 @@ export function AcornLogo({ size = 34 }) {
 export default function App() {
   const w = useWallet()
   const [sheet, setSheet] = useState(null)
+  const [stage, setStage] = useState('code') // code → physics → ready (or failed)
+  // Never leave the loader up forever: if the GPU is very slow, show the app anyway.
+  useEffect(() => {
+    const t = setTimeout(() => setStage((s) => (s === 'ready' || s === 'failed' ? s : 'ready')), 20000)
+    return () => clearTimeout(t)
+  }, [])
   const [scanning, setScanning] = useState(false)
   const [scanned, setScanned] = useState(null) // the last thing the dock scanner read
   const [toasts, setToasts] = useState([])
@@ -67,6 +95,25 @@ export default function App() {
     const id = Math.random()
     setToasts((t) => [...t, { id, text, kind }])
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200)
+  }, [])
+
+  // Deep links: ?scan=<token|invoice|address> (also what the web+cashu: protocol handler opens)
+  useEffect(() => {
+    const q = new URLSearchParams(location.search)
+    const raw = q.get('scan')
+    if (!raw) return
+    // Drop scan= from the URL by hand (URLSearchParams would turn a bare ?demo into ?demo=)
+    const rest = location.search.slice(1).split('&').filter((kv) => kv && !kv.startsWith('scan=')).join('&')
+    history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : '') + location.hash)
+    const r = classify(raw)
+    if (r.kind === 'token') {
+      setScanned(r)
+      setSheet('receive')
+    } else if (r.kind === 'invoice' || r.kind === 'address') {
+      setScanned(r)
+      setSheet('send')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const close = useCallback(() => {
@@ -85,12 +132,13 @@ export default function App() {
       </div>
 
       <div className="scene">
-        <SceneGuard>
-          <Suspense fallback={<div className="scene-loading">Filling the jar…</div>}>
-            <Scene proofs={w.activeProofs} fx={w.fx} amountOf={w.amountOf} onPoke={w.actions.shake} />
+        <SceneGuard onFail={() => setStage('failed')}>
+          <Suspense fallback={null}>
+            <Scene proofs={w.activeProofs} fx={w.fx} amountOf={w.amountOf} onPoke={w.actions.shake} onStage={setStage} />
           </Suspense>
         </SceneGuard>
       </div>
+      <JarLoader stage={stage} />
 
       <header className="top">
         <div className="brand">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl } from './kit.jsx'
+import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl, useInstall } from './kit.jsx'
 import { SUGGESTED_MINTS, FORCE_DEMO } from '../lib/useWallet.js'
 import { sumOf } from '../lib/cashu.js'
 
@@ -9,6 +9,7 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
   const [err, setErr] = useState('')
   const [backup, setBackup] = useState(null)
   const { mints, proofs, active } = w.state
+  const app = useInstall()
 
   const add = async (u) => {
     setBusy(true)
@@ -81,6 +82,21 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
           </>
         )}
         {err && <p className="error">{err}</p>}
+
+        {(app.canInstall || app.ios) && (
+          <>
+            <h3>App</h3>
+            {app.canInstall ? (
+              <button className="btn primary" onClick={app.install}>
+                📲 Install Bellota
+              </button>
+            ) : (
+              <p className="hint">
+                📲 To install: tap <b>Share</b> in Safari, then <b>Add to Home Screen</b>.
+              </p>
+            )}
+          </>
+        )}
 
         <h3>Mode</h3>
         {FORCE_DEMO ? (

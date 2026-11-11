@@ -1,0 +1,21 @@
+{
+  "name": "Bellota — 3D Cashu wallet",
+  "short_name": "Bellota",
+  "description": "A Cashu ecash wallet where your sats are acorns that drop into a jar.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFE9C7",
+  "theme_color": "#FFE9C7",
+  "categories": ["finance", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "protocol_handlers": [
+    { "protocol": "web+cashu", "url": "./?scan=%s" }
+  ]
+}

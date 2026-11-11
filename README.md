@@ -26,6 +26,8 @@ Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #Nut
 | 📷 **QR scanner** | A dock button reads any QR and routes it: Cashu token → claim; invoice, Lightning Address, LNURL or unified `bitcoin:…?lightning=` → pay. Works on iOS and Android, with a torch toggle when available. |
 | 🌱 **12-word seed (NUT-13)** | Every proof is derived from a BIP-39 seed, so your 12 words restore your balance in another browser. Restore walks every keyset of each mint (NUT-09) and keeps what's unspent (NUT-07). Counters are persisted *before* each operation so they're never reused. Uses the standard NUT-13 derivation, so the words should also work in other NUT-13 wallets. |
 | ⏳ **Crash-safe payments** | Before paying, proofs are saved as "in transit". If you close the tab or the payment stays pending, the app asks the mint (NUT-05/07) when you come back and returns whatever wasn't spent. |
+| 📲 **Installable PWA** | Add it to your home screen (Android, iOS, desktop). A small service worker caches the app so it opens offline; mint and Lightning Address traffic is never cached. |
+| 🔗 **Deep links** | `…/bellota/?scan=<token or invoice or address>` opens straight to claim or pay, and the app registers as a `web+cashu:` handler. |
 | 🏦 **Multi-mint** | Each mint is its own jar. Add, switch and remove mints. |
 | 🔐 **Token backup** | Also exports one token per mint with the whole balance. |
 | 🧸 **Demo mode** | An offline toy mint to try the experience without real sats. |
@@ -36,6 +38,7 @@ Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #Nut
 - Real physics (Rapier): coins fall, bounce and pile up.
 - Tap an acorn to see its value; tap the jar (or 🫨) to shake it.
 - The lid is a little acorn cap that pops open when coins come in or go out.
+- A hand-drawn loader (acorns dropping into a jar) shows from the first paint until the 3D has actually drawn its first frame.
 - If the browser has no WebGL, the wallet still works without the 3D.
 
 ## Run it

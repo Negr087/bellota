@@ -82,7 +82,19 @@ function Framing({ controls }) {
   return null
 }
 
-export default function Scene({ proofs, fx, amountOf, onPoke }) {
+// Fires once the physics world (Rapier wasm) is up and a frame has been drawn with the coins in it.
+// Lives inside the Physics <Suspense>, so it can't mount before the physics is ready.
+function ReadySignal({ onReady }) {
+  const sent = useRef(false)
+  useFrame(() => {
+    if (sent.current) return
+    sent.current = true
+    requestAnimationFrame(() => onReady?.())
+  })
+  return null
+}
+
+export default function Scene({ proofs, fx, amountOf, onPoke, onStage }) {
   const open = useLidOpen(fx)
   const controls = useRef()
   useEffect(refreshTexturesWhenFontsReady, [])
@@ -91,6 +103,7 @@ export default function Scene({ proofs, fx, amountOf, onPoke }) {
       dpr={[1, 2]}
       camera={{ position: [0, 3.4, 9.6], fov: 38 }}
       gl={{ antialias: true, alpha: true }}
+      onCreated={() => onStage?.('physics')}
     >
       <Framing controls={controls} />
       <ambientLight intensity={1.4} />
@@ -101,6 +114,7 @@ export default function Scene({ proofs, fx, amountOf, onPoke }) {
         <Physics gravity={[0, -14, 0]} timeStep="vary">
           <JarColliders />
           <Coins proofs={proofs} fx={fx} amountOf={amountOf} />
+          <ReadySignal onReady={() => onStage?.('ready')} />
         </Physics>
       </Suspense>
       <JarGlass onPoke={onPoke} />
