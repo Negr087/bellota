@@ -1,16 +1,16 @@
-// Entiende lo que sale de un QR o del portapapeles y dice qué es.
-//   { kind: 'token', value }    token Cashu (cashuA…, cashuB…, cashuDemo…)
-//   { kind: 'invoice', value }  invoice Lightning bolt11
-//   { kind: 'address', value }  Lightning Address (usuario@dominio) o LNURL-pay (lnurl1…)
+// Figures out what came out of a QR code or the clipboard.
+//   { kind: 'token', value }    Cashu token (cashuA…, cashuB…, cashuDemo…)
+//   { kind: 'invoice', value }  bolt11 Lightning invoice
+//   { kind: 'address', value }  Lightning Address (user@domain) or LNURL-pay (lnurl1…)
 //   { kind: 'unknown', value }
 import { isLightningAddress, isLnurl } from './lnurl.js'
 
 export function classify(raw) {
   let s = String(raw || '').trim()
-  // Esquemas URI: cashu:, lightning:, web+cashu:
+  // URI schemes: cashu:, lightning:, web+cashu:
   s = s.replace(/^(web\+)?cashu:(\/\/)?/i, '').replace(/^lightning:(\/\/)?/i, '')
 
-  // BIP21 unificado: bitcoin:bc1…?amount=…&lightning=lnbc…
+  // Unified BIP21: bitcoin:bc1…?amount=…&lightning=lnbc…
   if (/^bitcoin:/i.test(s)) {
     const q = s.split('?')[1] || ''
     const ln = new URLSearchParams(q).get('lightning')
@@ -21,7 +21,7 @@ export function classify(raw) {
   if (isLnurl(s)) return { kind: 'address', value: s.toLowerCase() }
   if (isLightningAddress(s)) return { kind: 'address', value: s.toLowerCase() }
   if (/^cashu[A-Za-z]/.test(s)) return { kind: 'token', value: s }
-  // (laxo a propósito: el mint valida la invoice de verdad, y las de la demo no son bech32)
+  // (deliberately loose: the mint does the real validation, and demo invoices aren't bech32)
   if (/^ln(bc|tb|bcrt|tbs)[0-9a-z]+$/i.test(s)) return { kind: 'invoice', value: s.toLowerCase() }
   return { kind: 'unknown', value: s }
 }

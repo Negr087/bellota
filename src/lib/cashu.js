@@ -1,5 +1,5 @@
-// Backend real: habla con mints Cashu usando @cashu/cashu-ts.
-// La UI solo conoce esta interfaz; el modo demo (demo.js) implementa la misma.
+// Real backend: talks to Cashu mints using @cashu/cashu-ts.
+// The UI only knows this interface; demo mode (demo.js) implements the same one.
 import {
   Wallet,
   MintQuoteState,
@@ -19,9 +19,9 @@ const wallets = new Map()
 
 async function getWallet(mintUrl) {
   if (!wallets.has(mintUrl)) {
-    // Con semilla, todos los secretos son determinísticos (NUT-13) y se pueden recuperar.
+    // With a seed, every secret is deterministic (NUT-13) and can be restored.
     const seed = seedStore.seedBytes()
-    const w = new Wallet(mintUrl, seed ? { bip39seed: seed, counterSource } : {}) // unidad: sat
+    const w = new Wallet(mintUrl, seed ? { bip39seed: seed, counterSource } : {}) // unit: sat
     wallets.set(
       mintUrl,
       w.loadMint().then(() => w),
@@ -31,14 +31,14 @@ async function getWallet(mintUrl) {
     return await wallets.get(mintUrl)
   } catch (e) {
     wallets.delete(mintUrl)
-    throw new Error(`No pude conectar con el mint (${mintUrl}). ${e?.message ?? ''}`)
+    throw new Error(`Couldn't connect to the mint (${mintUrl}). ${e?.message ?? ''}`)
   }
 }
 
 export const realBackend = {
   isDemo: false,
 
-  // 🌱 Semilla (NUT-13)
+  // 🌱 Seed (NUT-13)
   seed: {
     words: () => seedStore.mnemonic()?.split(' ') ?? [],
     backedUp: () => seedStore.backedUp(),
@@ -50,12 +50,12 @@ export const realBackend = {
     },
     replace(mnemonic, hadBalance) {
       seedStore.replace(mnemonic, hadBalance)
-      wallets.clear() // las wallets cacheadas tienen la semilla vieja
+      wallets.clear() // cached wallets hold the old seed
     },
   },
 
-  // Recupera las proofs de la semilla en un mint: recorre cada keyset (activos e inactivos),
-  // pide al mint que vuelva a firmar los outputs derivados y se queda con las no gastadas.
+  // Restores the seed's proofs on a mint: walks every keyset (active and inactive),
+  // asks the mint to re-sign the derived outputs and keeps the unspent ones.
   async restore(mintUrl, onProgress) {
     const w = await getWallet(mintUrl)
     const keysets = w.keyChain.getKeysets()
@@ -63,7 +63,7 @@ export const realBackend = {
     for (const [i, ks] of keysets.entries()) {
       onProgress?.({ keyset: ks.id, i, n: keysets.length })
       const { proofs, lastCounterWithSignature } = await w.batchRestore(300, undefined, 0, ks.id)
-      // Aunque estén gastadas, esos contadores ya se usaron: no los repetimos nunca.
+      // Even if spent, those counters were used: never reuse them.
       if (lastCounterWithSignature != null) await counterSource.advanceToAtLeast(ks.id, lastCounterWithSignature + 1)
       if (!proofs.length) continue
       const states = await w.checkProofsStates(proofs)
@@ -72,7 +72,7 @@ export const realBackend = {
     return found
   },
 
-  // Cambia proofs viejas (sin semilla) por proofs nuevas derivadas de la semilla.
+  // Swaps old (pre-seed) proofs for new proofs derived from the seed.
   async reissue(mintUrl, proofs) {
     const w = await getWallet(mintUrl)
     return w.receive(getEncodedToken({ mint: mintUrl, proofs, unit: 'sat' }))
@@ -87,14 +87,14 @@ export const realBackend = {
     return { name: info.name || new URL(mintUrl).host, description: info.description }
   },
 
-  // ⚡ → 🌰  Recibir por Lightning (NUT-04)
+  // ⚡ → 🌰  Receive via Lightning (NUT-04)
   async createInvoice(mintUrl, amount) {
     const w = await getWallet(mintUrl)
     const q = await w.createMintQuoteBolt11(amount, 'Bellota 🌰')
     return { quote: q.quote, request: q.request, amount, expiry: q.expiry }
   },
 
-  // Devuelve 'UNPAID' | 'PAID' | 'ISSUED'
+  // Returns 'UNPAID' | 'PAID' | 'ISSUED'
   async checkInvoice(mintUrl, quote) {
     const w = await getWallet(mintUrl)
     const q = await w.checkMintQuoteBolt11(quote)
@@ -106,7 +106,7 @@ export const realBackend = {
     return w.mintProofsBolt11(amount, quote)
   },
 
-  // 🌰 Recibir ecash (token cashuA/cashuB)
+  // 🌰 Receive ecash (cashuA/cashuB token)
   tokenInfo(token) {
     const meta = getTokenMetadata(token.trim())
     return { mint: meta.mint, amount: amountOf(meta.amount), unit: meta.unit, memo: meta.memo }
@@ -115,13 +115,13 @@ export const realBackend = {
   async receiveToken(token) {
     const clean = token.trim()
     const meta = getTokenMetadata(clean)
-    if (meta.unit && meta.unit !== 'sat') throw new Error(`Por ahora solo acepto sats (el token es en ${meta.unit}).`)
+    if (meta.unit && meta.unit !== 'sat') throw new Error(`Only sats are supported for now (this token is in ${meta.unit}).`)
     const w = await getWallet(meta.mint)
     const proofs = await w.receive(clean)
     return { mint: meta.mint, proofs }
   },
 
-  // 🌰 → token  Enviar ecash
+  // 🌰 → token  Send ecash
   async sendEcash(mintUrl, amount, proofs, memo) {
     const w = await getWallet(mintUrl)
     const { keep, send } = await w.send(amount, proofs, { includeFees: true })
@@ -129,17 +129,17 @@ export const realBackend = {
     return { keep, send, token }
   },
 
-  // 🌰 → ⚡  Pagar invoice (NUT-05)
+  // 🌰 → ⚡  Pay an invoice (NUT-05)
   async meltQuote(mintUrl, invoice) {
     const w = await getWallet(mintUrl)
     const q = await w.createMeltQuoteBolt11(invoice.trim().replace(/^lightning:/i, ''))
     return { raw: q, amount: amountOf(q.amount), fee: amountOf(q.fee_reserve) }
   },
 
-  // `onReserve({ keep, send })` se llama apenas el swap separa las proofs, ANTES del melt:
-  // el swap invalida las proofs viejas, así que hay que persistir keep/send ya mismo
-  // por si se cierra la pestaña mientras Lightning resuelve el pago.
-  // Devuelve { state: 'PAID' | 'PENDING', change }.
+  // `onReserve({ keep, send })` is called as soon as the swap splits the proofs, BEFORE the melt:
+  // the swap invalidates the old proofs, so keep/send must be persisted right away
+  // in case the tab is closed while Lightning settles the payment.
+  // Returns { state: 'PAID' | 'PENDING', change }.
   async payInvoice(mintUrl, quote, proofs, onReserve) {
     const w = await getWallet(mintUrl)
     const total = quote.raw.amount.add(quote.raw.fee_reserve)
@@ -148,20 +148,20 @@ export const realBackend = {
     try {
       const res = await w.meltProofsBolt11(quote.raw, send)
       const state = res.quote?.state ?? 'PAID'
-      if (state === 'UNPAID') throw new Error('El mint no pudo pagar la invoice')
+      if (state === 'UNPAID') throw new Error('The mint could not pay the invoice')
       return { state, change: res.change ?? [], preimage: res.quote?.payment_preimage ?? null }
     } catch (e) {
-      // Si podemos confirmar que las proofs no se gastaron, el pago falló limpio.
+      // If we can confirm the proofs weren't spent, the payment failed cleanly.
       const settled = await this.checkMelt(mintUrl, quote.raw.quote, send).catch(() => null)
-      const err = new Error(e?.message || 'El pago falló')
+      const err = new Error(e?.message || 'Payment failed')
       if (settled?.state === 'UNPAID') err.recovered = settled.unspent
-      else err.unknown = true // estado incierto: queda "en tránsito" y se revisa en segundo plano
+      else err.unknown = true // unknown outcome: stays "in transit" and is checked in the background
       throw err
     }
   },
 
-  // Resuelve un pago que quedó en tránsito. Devuelve
-  // { state: 'PAID' | 'PENDING' | 'UNPAID', unspent } donde `unspent` son las proofs recuperables.
+  // Settles a payment left in transit. Returns
+  // { state: 'PAID' | 'PENDING' | 'UNPAID', unspent } where `unspent` are the recoverable proofs.
   async checkMelt(mintUrl, quoteId, proofs) {
     const w = await getWallet(mintUrl)
     const [q, states] = await Promise.all([w.checkMeltQuoteBolt11(quoteId), w.checkProofsStates(proofs)])
@@ -173,7 +173,7 @@ export const realBackend = {
 
   encodeToken: (mint, proofs) => getEncodedToken({ mint, proofs, unit: 'sat' }),
 
-  // ¿Ya cobraron un token que envié? Si no, lo podemos recuperar con receiveToken.
+  // Has a token I sent been claimed? If not, it can be reclaimed with receiveToken.
   async isTokenSpent(token) {
     const meta = getTokenMetadata(token)
     const w = await getWallet(meta.mint)

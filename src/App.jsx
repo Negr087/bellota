@@ -11,14 +11,14 @@ import SeedSheet from './ui/SeedSheet.jsx'
 
 const Scene = lazy(() => import('./three/Scene.jsx'))
 
-// Si el 3D falla (WebGL apagado, GPU vieja), la wallet sigue funcionando
+// If 3D fails (WebGL off, old GPU), the wallet keeps working
 class SceneGuard extends Component {
   state = { failed: false }
   static getDerivedStateFromError() {
     return { failed: true }
   }
   render() {
-    return this.state.failed ? <div className="scene-loading">🫙 (tu navegador no muestra 3D, pero la wallet funciona igual)</div> : this.props.children
+    return this.state.failed ? <div className="scene-loading">🫙 (your browser can't show 3D, but the wallet still works)</div> : this.props.children
   }
 }
 
@@ -58,7 +58,7 @@ export default function App() {
   const w = useWallet()
   const [sheet, setSheet] = useState(null)
   const [scanning, setScanning] = useState(false)
-  const [scanned, setScanned] = useState(null) // lo último que leyó el escáner del dock
+  const [scanned, setScanned] = useState(null) // the last thing the dock scanner read
   const [toasts, setToasts] = useState([])
   const shown = useCountUp(w.balance)
   const activeMint = w.state.mints.find((m) => m.url === w.state.active)
@@ -86,7 +86,7 @@ export default function App() {
 
       <div className="scene">
         <SceneGuard>
-          <Suspense fallback={<div className="scene-loading">Llenando el frasco…</div>}>
+          <Suspense fallback={<div className="scene-loading">Filling the jar…</div>}>
             <Scene proofs={w.activeProofs} fx={w.fx} amountOf={w.amountOf} onPoke={w.actions.shake} />
           </Suspense>
         </SceneGuard>
@@ -99,32 +99,32 @@ export default function App() {
           {w.mode === 'demo' && <span className="tag">demo</span>}
         </div>
         <div className="top-actions">
-          <button className="mint-chip" onClick={() => setSheet('mints')} title="Cambiar de mint">
-            🏦 <span>{activeMint?.name || shortUrl(w.state.active || 'sin mint')}</span> ▾
+          <button className="mint-chip" onClick={() => setSheet('mints')} title="Switch mint">
+            🏦 <span>{activeMint?.name || shortUrl(w.state.active || 'no mint')}</span> ▾
           </button>
-          <button className="icon-btn" onClick={() => setSheet('history')} aria-label="Historial">
+          <button className="icon-btn" onClick={() => setSheet('history')} aria-label="History">
             📜
           </button>
         </div>
       </header>
 
       <section className="balance">
-        <small>en este frasco</small>
+        <small>in this jar</small>
         <div className="bal">
           {fmtSats(shown)} <span>sats</span>
         </div>
         <small className="sub">
-          {w.activeProofs.length} {w.activeProofs.length === 1 ? 'bellota' : 'bellotas'}
-          {mintCount > 1 && ` · ${fmtSats(w.total)} sats en ${mintCount} mints`}
+          {w.activeProofs.length} {w.activeProofs.length === 1 ? 'acorn' : 'acorns'}
+          {mintCount > 1 && ` · ${fmtSats(w.total)} sats across ${mintCount} mints`}
         </small>
-        {w.inTransit > 0 && <small className="sub">⏳ {fmtSats(w.inTransit)} sats en tránsito (pago Lightning sin confirmar)</small>}
+        {w.inTransit > 0 && <small className="sub">⏳ {fmtSats(w.inTransit)} sats in transit (unconfirmed Lightning payment)</small>}
       </section>
 
       {empty && (
         <div className="bubble">
-          <b>¡Tu frasco está vacío!</b>
+          <b>Your jar is empty!</b>
           <span>
-            Cada bellota es una prueba de ecash Cashu: plata digital al portador, privada como el efectivo.
+            Each acorn is a Cashu ecash proof: digital bearer money, as private as cash.
           </span>
           {w.backend.isDemo ? (
             <button
@@ -132,17 +132,17 @@ export default function App() {
               onClick={async () => {
                 try {
                   await w.actions.receiveToken(makeGiftToken(1337))
-                  toast('+1.337 sats de juguete 🌰')
+                  toast('+1,337 toy sats 🌰')
                 } catch (e) {
                   toast(errMsg(e), 'err')
                 }
               }}
             >
-              Llenar con sats de juguete 🎁
+              Fill it with toy sats 🎁
             </button>
           ) : (
             <button className="btn primary" onClick={() => setSheet('receive')}>
-              Recibir mis primeros sats
+              Receive my first sats
             </button>
           )}
         </div>
@@ -150,24 +150,24 @@ export default function App() {
 
       {!empty && w.backend.seed && !w.backend.seed.backedUp() && (
         <button className="seed-nag" onClick={() => setSheet('seed')}>
-          🌱 <span>Anotá tus 12 palabras para no perder tus sats</span> →
+          🌱 <span>Write down your 12 words so you never lose your sats</span> →
         </button>
       )}
 
-      {!empty && <p className="poke-hint">tocá una bellota para ver cuánto vale · tocá el frasco para agitarlo</p>}
+      {!empty && <p className="poke-hint">tap an acorn to see its value · tap the jar to shake it</p>}
 
       <nav className="dock">
         <button className="dock-btn in" onClick={() => setSheet('receive')}>
-          <span className="dock-ico">↓</span> Recibir
+          <span className="dock-ico">↓</span> Receive
         </button>
-        <button className="dock-btn shake" onClick={w.actions.shake} aria-label="Agitar el frasco" title="Agitar">
+        <button className="dock-btn shake" onClick={w.actions.shake} aria-label="Shake the jar" title="Shake">
           🫨
         </button>
-        <button className="dock-btn shake scan" onClick={() => setScanning(true)} aria-label="Escanear QR" title="Escanear">
+        <button className="dock-btn shake scan" onClick={() => setScanning(true)} aria-label="Scan QR" title="Scan">
           📷
         </button>
         <button className="dock-btn out" onClick={() => setSheet('send')} disabled={empty}>
-          Enviar <span className="dock-ico">↑</span>
+          Send <span className="dock-ico">↑</span>
         </button>
       </nav>
 
@@ -185,7 +185,7 @@ export default function App() {
           } else if (r.kind === 'invoice' || r.kind === 'address') {
             setScanned(r)
             setSheet('send')
-          } else toast('Ese QR no es un token Cashu, una invoice ni una Lightning Address', 'err')
+          } else toast("That QR isn't a Cashu token, an invoice or a Lightning Address", 'err')
         }}
       />
       {sheet === 'mints' && <MintsSheet w={w} onClose={close} toast={toast} onSeed={() => setSheet('seed')} />}

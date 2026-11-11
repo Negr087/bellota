@@ -7,7 +7,7 @@ import { JarColliders, JarGlass, JarLid, Table } from './Jar.jsx'
 import { Coins } from './Coins.jsx'
 import { refreshTexturesWhenFontsReady, toonRamp } from './materials.js'
 
-// Hojitas de roble que caen de fondo
+// Oak leaves falling in the background
 function Leaves() {
   const ramp = toonRamp()
   const shape = useMemo(() => {
@@ -65,7 +65,7 @@ function useLidOpen(fx) {
   return open
 }
 
-// Encuadre: en pantallas angostas (celular) alejamos la cámara para que entre el frasco
+// Framing: on narrow screens (phones) pull the camera back so the jar fits
 function Framing({ controls }) {
   const { camera, size } = useThree()
   useEffect(() => {

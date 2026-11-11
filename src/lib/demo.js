@@ -1,11 +1,11 @@
-// Backend de demostración: simula un mint sin tocar la red.
-// Sirve para probar la experiencia 3D sin sats reales (y para la vista previa sin red).
+// Demo backend: simulates a mint without touching the network.
+// Lets you try the 3D experience without real sats (and works offline).
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const rid = () => Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
 
 export const DEMO_MINT = 'https://demo.bellota.local'
 
-// Igual que Cashu: los montos se parten en potencias de 2.
+// Same as Cashu: amounts are split into powers of 2.
 export function splitPow2(n) {
   const out = []
   for (let b = 0; n > 0; b++, n >>= 1) if (n & 1) out.push(1 << b)
@@ -26,15 +26,15 @@ function select(amount, proofs) {
     picked.push(p)
     total += p.amount
   }
-  if (total < amount) throw new Error('Saldo insuficiente')
+  if (total < amount) throw new Error('Insufficient balance')
   const rest = proofs.filter((p) => !picked.includes(p))
-  // "swap": devolvemos el vuelto como proofs nuevas
+  // "swap": change comes back as fresh proofs
   return { send: makeProofs(amount), keep: [...rest, ...makeProofs(total - amount)] }
 }
 
 const encode = (obj) => 'cashuDemo' + btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
 const decode = (tok) => {
-  if (!tok.startsWith('cashuDemo')) throw new Error('En modo demo solo acepto tokens demo (cashuDemo…)')
+  if (!tok.startsWith('cashuDemo')) throw new Error('Demo mode only accepts demo tokens (cashuDemo…)')
   return JSON.parse(decodeURIComponent(escape(atob(tok.slice(9)))))
 }
 
@@ -51,19 +51,19 @@ function invoiceSats(inv) {
 
 export const demoBackend = {
   isDemo: true,
-  seed: null, // la demo no tiene semilla: los sats son de juguete
+  seed: null, // the demo has no seed: the sats are toys
   serialize: (proofs) => JSON.stringify(proofs),
   deserialize: (str) => JSON.parse(str || '[]'),
 
   async mintInfo() {
     await wait(200)
-    return { name: 'Mint de juguete', description: 'Sats de mentira para probar' }
+    return { name: 'Toy mint', description: 'Pretend sats for testing' }
   },
 
   async createInvoice(_mint, amount) {
     await wait(500)
     const quote = rid()
-    paidAt.set(quote, Date.now() + 3500) // "se paga" sola a los 3.5 s
+    paidAt.set(quote, Date.now() + 3500) // "pays itself" after 3.5 s
     const request = `lnbc${amount * 10}n1demo${rid()}${rid()}${rid()}`.slice(0, 180)
     return { quote, request, amount, expiry: null }
   },
@@ -89,7 +89,7 @@ export const demoBackend = {
   async receiveToken(token) {
     await wait(600)
     const t = decode(token.trim())
-    if (spentTokens.has(t.nonce)) throw new Error('Ese token ya fue cobrado')
+    if (spentTokens.has(t.nonce)) throw new Error('That token was already claimed')
     spentTokens.add(t.nonce)
     return { mint: t.mint, proofs: makeProofs(sum(t.proofs)) }
   },
@@ -104,7 +104,7 @@ export const demoBackend = {
   async meltQuote(_mint, invoice) {
     await wait(400)
     const amount = invoiceSats(invoice)
-    if (!amount) throw new Error('Eso no parece una invoice Lightning (lnbc…)')
+    if (!amount) throw new Error("That doesn't look like a Lightning invoice (lnbc…)")
     return { raw: { invoice }, amount, fee: Math.max(1, Math.ceil(amount * 0.01)) }
   },
 
@@ -112,11 +112,11 @@ export const demoBackend = {
     await wait(300)
     onReserve(select(quote.amount + quote.fee, proofs))
     await wait(900)
-    const change = makeProofs(Math.floor(quote.fee / 2)) // parte de la reserva vuelve
+    const change = makeProofs(Math.floor(quote.fee / 2)) // part of the fee reserve comes back
     return { state: 'PAID', change, preimage: rid() }
   },
 
-  // En la demo los pagos nunca quedan colgados
+  // In the demo, payments never get stuck
   async checkMelt() {
     return { state: 'PAID', unspent: [] }
   },
@@ -129,7 +129,7 @@ export const demoBackend = {
   },
 }
 
-// Para que en la demo puedas "recibir" algo de alguien
+// So you can "receive" something from someone in the demo
 export function makeGiftToken(amount = 210) {
-  return encode({ mint: DEMO_MINT, proofs: makeProofs(amount), memo: '¡Un regalo de prueba! 🌰', nonce: rid() })
+  return encode({ mint: DEMO_MINT, proofs: makeProofs(amount), memo: 'A test gift! 🌰', nonce: rid() })
 }

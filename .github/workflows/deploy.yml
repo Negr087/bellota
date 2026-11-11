@@ -1,5 +1,5 @@
-# Publica la app en GitHub Pages en cada push a main.
-# Una sola vez: Settings → Pages → Source: "GitHub Actions".
+# Publishes the app to GitHub Pages on every push to main.
+# One-time setup: Settings → Pages → Source: "GitHub Actions".
 name: Deploy
 
 on:

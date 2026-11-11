@@ -23,7 +23,7 @@ function LightningIn({ w, onDone }) {
         try {
           const st = await w.actions.pollInvoice(inv)
           if (st === 'CLAIMED' || st === 'ISSUED') {
-            doneRef.current(`+${fmtSats(inv.amount)} sats cayeron al frasco 🌰`)
+            doneRef.current(`+${fmtSats(inv.amount)} sats dropped into the jar 🌰`)
             return
           }
         } catch (e) {
@@ -41,15 +41,15 @@ function LightningIn({ w, onDone }) {
   if (inv)
     return (
       <div className="stack center">
-        <QR value={inv.request} label="Invoice Lightning" />
+        <QR value={inv.request} label="Lightning invoice" />
         <p className="big-amount">{fmtSats(inv.amount)} sats</p>
         <p className="waiting">
-          <span className="dot" /> Esperando el pago…
+          <span className="dot" /> Waiting for payment…
         </p>
         <div className="row">
-          <CopyBtn text={inv.request}>Copiar invoice</CopyBtn>
+          <CopyBtn text={inv.request}>Copy invoice</CopyBtn>
           <a className="btn ghost" href={`lightning:${inv.request}`}>
-            Abrir wallet ⚡
+            Open wallet ⚡
           </a>
         </div>
         <code className="mono-clip">{inv.request}</code>
@@ -61,7 +61,7 @@ function LightningIn({ w, onDone }) {
   return (
     <div className="stack">
       <p className="hint">
-        Pagás una invoice Lightning y el mint <b>{shortUrl(w.state.active)}</b> te da bellotas (ecash) por el mismo monto.
+        Pay a Lightning invoice and the mint <b>{shortUrl(w.state.active)}</b> gives you acorns (ecash) for the same amount.
       </p>
       <AmountInput value={amount} onChange={setAmount} />
       {err && <p className="error">{err}</p>}
@@ -80,7 +80,7 @@ function LightningIn({ w, onDone }) {
           }
         }}
       >
-        {busy ? 'Pidiendo invoice…' : 'Crear invoice ⚡'}
+        {busy ? 'Requesting invoice…' : 'Create invoice ⚡'}
       </button>
     </div>
   )
@@ -102,7 +102,7 @@ function EcashIn({ w, onDone, initial = '' }) {
   const known = info && w.state.mints.some((m) => m.url === info.mint.replace(/\/+$/, ''))
   return (
     <div className="stack">
-      <p className="hint">Pegá un token Cashu (empieza con <code>cashuA</code> o <code>cashuB</code>) para guardarlo en el frasco.</p>
+      <p className="hint">Paste a Cashu token (starts with <code>cashuA</code> or <code>cashuB</code>) to put it in the jar.</p>
       <textarea
         className="token-area"
         placeholder="cashuB…"
@@ -113,25 +113,25 @@ function EcashIn({ w, onDone, initial = '' }) {
       />
       <ScanBtn
         accept="token"
-        hint="Apuntá al QR del token Cashu"
+        hint="Point at the Cashu token QR"
         onScan={(v) => {
           setErr('')
           setToken(v)
         }}
-        onWrong={(r) => setErr(r.kind === 'invoice' ? 'Eso es una invoice Lightning: para pagarla andá a Enviar → Pagar Lightning.' : 'Ese QR no es un token Cashu.')}
+        onWrong={(r) => setErr(r.kind === 'invoice' ? 'That is a Lightning invoice: to pay it, go to Send → Pay Lightning.' : "That QR isn't a Cashu token.")}
       />
       {w.backend.isDemo && !token && (
         <button className="btn ghost" onClick={() => setToken(makeGiftToken(21 * Math.ceil(Math.random() * 30)))}>
-          🎁 Generar un token de regalo (demo)
+          🎁 Generate a gift token (demo)
         </button>
       )}
-      {bad && <p className="error">Eso no parece un token Cashu válido.</p>}
+      {bad && <p className="error">That doesn't look like a valid Cashu token.</p>}
       {info && (
         <div className="token-card">
           <div className="big-amount">{fmtSats(info.amount)} sats</div>
-          <div className="muted">de {shortUrl(info.mint)}</div>
+          <div className="muted">from {shortUrl(info.mint)}</div>
           {info.memo && <div className="memo">“{info.memo}”</div>}
-          {!known && <div className="warn">Es un mint nuevo para vos: lo voy a agregar a tu lista. Solo aceptá tokens de mints en los que confíes.</div>}
+          {!known && <div className="warn">This mint is new to you: it will be added to your list. Only accept tokens from mints you trust.</div>}
         </div>
       )}
       {err && <p className="error">{err}</p>}
@@ -143,7 +143,7 @@ function EcashIn({ w, onDone, initial = '' }) {
           setErr('')
           try {
             const amt = await w.actions.receiveToken(token)
-            onDone(`+${fmtSats(amt)} sats cobrados 🌰`)
+            onDone(`+${fmtSats(amt)} sats claimed 🌰`)
           } catch (e) {
             setErr(errMsg(e))
           } finally {
@@ -151,7 +151,7 @@ function EcashIn({ w, onDone, initial = '' }) {
           }
         }}
       >
-        {busy ? 'Cobrando…' : 'Cobrar token 🌰'}
+        {busy ? 'Claiming…' : 'Claim token 🌰'}
       </button>
     </div>
   )
@@ -164,7 +164,7 @@ export default function ReceiveSheet({ w, onClose, toast, initialToken }) {
     onClose()
   }
   return (
-    <Sheet title="Recibir" emoji="📥" onClose={onClose}>
+    <Sheet title="Receive" emoji="📥" onClose={onClose}>
       <Tabs
         value={tab}
         onChange={setTab}

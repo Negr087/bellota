@@ -14,13 +14,13 @@ function MyWords({ w, toast }) {
   return (
     <div className="stack">
       <p className="hint">
-        Estas <b>12 palabras</b> son la llave de tus bellotas. Con ellas recuperás tu saldo en cualquier navegador, o en otra wallet Cashu compatible con NUT-13
-        (cashu.me, Minibits…). Anotalas en papel. <b>Quien las tenga, tiene tus sats.</b>
+        These <b>12 words</b> are the key to your acorns. With them you can restore your balance in any browser, or in another NUT-13 Cashu wallet
+        (cashu.me, Minibits…). Write them down on paper. <b>Whoever has them has your sats.</b>
       </p>
 
       {!show ? (
         <button className="btn primary xl" onClick={() => setShow(true)}>
-          Mostrar mis 12 palabras 👀
+          Show my 12 words 👀
         </button>
       ) : (
         <>
@@ -32,9 +32,9 @@ function MyWords({ w, toast }) {
             ))}
           </ol>
           <div className="row">
-            <CopyBtn text={words.join(' ')}>Copiar 📋</CopyBtn>
+            <CopyBtn text={words.join(' ')}>Copy 📋</CopyBtn>
             <button className="btn ghost" onClick={() => setShow(false)}>
-              Ocultar
+              Hide
             </button>
           </div>
           {!seed.backedUp() ? (
@@ -42,23 +42,23 @@ function MyWords({ w, toast }) {
               className="btn primary xl"
               onClick={() => {
                 w.actions.markBackedUp()
-                toast('🌱 ¡Listo! Guardalas en un lugar seguro')
+                toast('🌱 Done! Keep them somewhere safe')
               }}
             >
-              Ya las anoté ✓
+              I wrote them down ✓
             </button>
           ) : (
-            <p className="muted center">✓ Marcaste que ya las anotaste.</p>
+            <p className="muted center">✓ You marked them as written down.</p>
           )}
         </>
       )}
 
       {legacy && (
         <div className="token-card">
-          <b>Tenés saldo de antes de la semilla</b>
+          <b>You have balance from before the seed</b>
           <p className="hint">
-            Esas bellotas no se recuperan con las 12 palabras. Pasalas a la semilla: se cambian por bellotas nuevas en el mint (puede costar 1 o 2 sats de
-            comisión).
+            Those acorns can't be restored with the 12 words. Move them to the seed: they get swapped for new acorns at the mint (may cost a sat or two in
+            fees).
           </p>
           {err && <p className="error">{err}</p>}
           <button
@@ -69,7 +69,7 @@ function MyWords({ w, toast }) {
               setErr('')
               try {
                 const n = await w.actions.migrateToSeed()
-                toast(`🌱 ${fmtSats(n)} sats protegidos por la semilla`)
+                toast(`🌱 ${fmtSats(n)} sats now covered by the seed`)
               } catch (e) {
                 setErr(errMsg(e))
               } finally {
@@ -77,7 +77,7 @@ function MyWords({ w, toast }) {
               }
             }}
           >
-            {busy ? 'Pasando…' : 'Proteger todo con la semilla 🌱'}
+            {busy ? 'Moving…' : 'Protect everything with the seed 🌱'}
           </button>
         </div>
       )}
@@ -112,18 +112,18 @@ function Restore({ w, toast }) {
     const total = results.reduce((s, r) => s + (r.amount || 0), 0)
     return (
       <div className="stack">
-        <p className="big-amount center">{total > 0 ? `+${fmtSats(total)} sats 🌱` : 'No encontré saldo'}</p>
+        <p className="big-amount center">{total > 0 ? `+${fmtSats(total)} sats 🌱` : 'No balance found'}</p>
         <ul className="restore-results">
           {results.map((r) => (
             <li key={r.url}>
               <b>{shortUrl(r.url)}</b>
-              <span className={r.error ? 'error' : ''}>{r.error ? `⚠️ ${r.error}` : r.amount ? `${fmtSats(r.amount)} sats` : 'nada'}</span>
+              <span className={r.error ? 'error' : ''}>{r.error ? `⚠️ ${r.error}` : r.amount ? `${fmtSats(r.amount)} sats` : 'nothing'}</span>
             </li>
           ))}
         </ul>
-        <p className="hint">Si usaste otros mints con esta semilla, agregalos y volvé a recuperar: es seguro repetirlo.</p>
+        <p className="hint">If you used other mints with this seed, add them and restore again: it's safe to repeat.</p>
         <button className="btn ghost" onClick={() => setResults(null)}>
-          Recuperar en otro mint
+          Restore on another mint
         </button>
       </div>
     )
@@ -131,30 +131,30 @@ function Restore({ w, toast }) {
 
   return (
     <div className="stack">
-      <p className="hint">Escribí tus 12 palabras y elegí en qué mints buscar. El mint vuelve a firmar tus bellotas y te quedás con las que no se gastaron.</p>
+      <p className="hint">Type your 12 words and pick which mints to search. The mint re-signs your acorns and you keep the unspent ones.</p>
       <textarea
         className="token-area"
         rows={3}
-        placeholder="palabra1 palabra2 palabra3 …"
+        placeholder="word1 word2 word3 …"
         spellCheck={false}
         autoCapitalize="none"
         autoComplete="off"
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
-      {count > 0 && !valid && <p className={count >= 12 ? 'error' : 'muted'}>{count >= 12 ? 'Esas palabras no forman una semilla válida (revisá si hay alguna mal escrita).' : `${count} de 12 palabras`}</p>}
-      {valid && <p className="muted">✓ Semilla válida</p>}
+      {count > 0 && !valid && <p className={count >= 12 ? 'error' : 'muted'}>{count >= 12 ? "Those words don't form a valid seed (check for typos)." : `${count} of 12 words`}</p>}
+      {valid && <p className="muted">✓ Valid seed</p>}
 
-      <h3>Buscar en</h3>
-      <div className="mint-picks">
+      <h3>Search on</h3>
+      <div className="seed-mints">
         {mints.map((u) => (
-          <label key={u} className="mint-pick">
+          <label key={u} className="seed-mint">
             <input type="checkbox" checked={picked.has(u)} onChange={() => toggle(u)} /> {shortUrl(u)}
           </label>
         ))}
       </div>
       <div className="row small">
-        <input className="text-in grow" placeholder="Otro mint: https://…" value={extra} onChange={(e) => setExtra(e.target.value)} />
+        <input className="text-in grow" placeholder="Another mint: https://…" value={extra} onChange={(e) => setExtra(e.target.value)} />
         <button
           className="btn"
           disabled={!/^https?:\/\/.+\..+/.test(extra.trim())}
@@ -165,14 +165,14 @@ function Restore({ w, toast }) {
             setExtra('')
           }}
         >
-          Agregar
+          Add
         </button>
       </div>
 
       {replacing && w.total > 0 && (
         <div className="warn">
-          Esta semilla es distinta a la tuya actual. Tu saldo de ahora se queda, pero no lo cubren las palabras nuevas: después podés pasarlo a la semilla nueva
-          desde “Mis palabras”. Antes, <b>anotá tus palabras actuales</b> por las dudas.
+          This seed is different from your current one. Your current balance stays, but the new words don't cover it: afterwards you can move it to the new
+          seed from “My words”. First, <b>write down your current words</b> just in case.
         </div>
       )}
       {progress && <p className="muted">{progress}</p>}
@@ -183,18 +183,18 @@ function Restore({ w, toast }) {
           setBusy(true)
           try {
             const r = await w.actions.restoreFromSeed(words, [...picked], (p) =>
-              setProgress(p.phase === 'connect' ? `Conectando con ${shortUrl(p.url)}…` : `Buscando en ${shortUrl(p.url)} (keyset ${p.i + 1} de ${p.n})…`),
+              setProgress(p.phase === 'connect' ? `Connecting to ${shortUrl(p.url)}…` : `Searching ${shortUrl(p.url)} (keyset ${p.i + 1} of ${p.n})…`),
             )
             setResults(r)
             const total = r.reduce((s, x) => s + (x.amount || 0), 0)
-            if (total) toast(`🌱 Recuperaste ${fmtSats(total)} sats`)
+            if (total) toast(`🌱 Restored ${fmtSats(total)} sats`)
           } finally {
             setBusy(false)
             setProgress('')
           }
         }}
       >
-        {busy ? 'Recuperando…' : 'Recuperar 🌱'}
+        {busy ? 'Restoring…' : 'Restore 🌱'}
       </button>
     </div>
   )
@@ -204,18 +204,18 @@ export default function SeedSheet({ w, onClose, toast }) {
   const [tab, setTab] = useState('words')
   if (!w.backend.seed)
     return (
-      <Sheet title="Semilla" emoji="🌱" onClose={onClose}>
-        <p className="hint">En modo demo no hay semilla: los sats son de juguete. Pasate a “Mints reales” para tener tus 12 palabras.</p>
+      <Sheet title="Seed" emoji="🌱" onClose={onClose}>
+        <p className="hint">Demo mode has no seed: the sats are toys. Switch to “Real mints” to get your 12 words.</p>
       </Sheet>
     )
   return (
-    <Sheet title="Semilla" emoji="🌱" onClose={onClose}>
+    <Sheet title="Seed" emoji="🌱" onClose={onClose}>
       <Tabs
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'words', label: '🔑 Mis palabras' },
-          { value: 'restore', label: '🌱 Recuperar' },
+          { value: 'words', label: '🔑 My words' },
+          { value: 'restore', label: '🌱 Restore' },
         ]}
       />
       {tab === 'words' ? <MyWords w={w} toast={toast} /> : <Restore w={w} toast={toast} />}

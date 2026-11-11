@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 
-// Pantalla completa con la cámara. Llama a onResult(texto) con el primer QR que lee.
-// qr-scanner se carga recién acá, así no pesa en la carga inicial de la app.
-export default function Scanner({ onResult, onClose, hint = 'Apuntá a un QR de Cashu o Lightning' }) {
+// Full-screen camera view. Calls onResult(text) with the first QR code it reads.
+// qr-scanner is only loaded here, so it doesn't weigh on the app's initial load.
+export default function Scanner({ onResult, onClose, hint = 'Point at a Cashu or Lightning QR code' }) {
   const video = useRef(null)
   const done = useRef(false)
   const scannerRef = useRef(null)
   const [err, setErr] = useState('')
-  const [torch, setTorch] = useState(null) // null = sin linterna; true/false = estado
+  const [torch, setTorch] = useState(null) // null = no torch; true/false = state
 
   useEffect(() => {
     let scanner
@@ -15,7 +15,7 @@ export default function Scanner({ onResult, onClose, hint = 'Apuntá a un QR de 
     ;(async () => {
       try {
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia)
-          throw new Error('La cámara solo funciona en HTTPS (o localhost).')
+          throw new Error('The camera only works over HTTPS (or localhost).')
         const { default: QrScanner } = await import('qr-scanner')
         if (!alive) return
         scanner = new QrScanner(
@@ -38,9 +38,9 @@ export default function Scanner({ onResult, onClose, hint = 'Apuntá a un QR de 
         const m = String(e?.message || e)
         setErr(
           /permission|denied|NotAllowed/i.test(m)
-            ? 'No me diste permiso para usar la cámara. Habilitalo en la configuración del navegador.'
+            ? 'Camera permission was denied. Enable it in your browser settings.'
             : /camera not found|NotFound|no camera/i.test(m)
-              ? 'No encontré ninguna cámara en este dispositivo.'
+              ? 'No camera found on this device.'
               : m,
         )
       }
@@ -56,12 +56,12 @@ export default function Scanner({ onResult, onClose, hint = 'Apuntá a un QR de 
   }, [])
 
   return (
-    <div className="scanner" role="dialog" aria-label="Escanear QR">
+    <div className="scanner" role="dialog" aria-label="Scan QR">
       <video ref={video} muted playsInline />
       <div className="scan-frame" aria-hidden="true" />
       <div className="scan-top">
-        <span className="scan-hint">{err ? '📷 Sin cámara' : hint}</span>
-        <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
+        <span className="scan-hint">{err ? '📷 No camera' : hint}</span>
+        <button className="icon-btn" onClick={onClose} aria-label="Close">
           ✕
         </button>
       </div>
@@ -78,7 +78,7 @@ export default function Scanner({ onResult, onClose, hint = 'Apuntá a un QR de 
             }
           }}
         >
-          {torch ? '🔦 Apagar luz' : '🔦 Prender luz'}
+          {torch ? '🔦 Light off' : '🔦 Light on'}
         </button>
       )}
     </div>

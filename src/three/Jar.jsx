@@ -4,10 +4,10 @@ import { RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { Hull, INK, toonRamp } from './materials.js'
 
-export const JAR_R = 1.45 // radio interior útil
+export const JAR_R = 1.45 // usable inner radius
 export const JAR_H = 2.9
 
-// Paredes físicas invisibles (más altas que el frasco para que nada se escape al caer)
+// Invisible physics walls (taller than the jar so nothing escapes while falling)
 export function JarColliders() {
   const walls = useMemo(() => {
     const n = 22
@@ -30,7 +30,7 @@ export function JarColliders() {
 }
 
 function leafTexture() {
-  // trama de "escamas" para el sombrero de bellota
+  // "scale" pattern for the acorn cap
   const c = document.createElement('canvas')
   c.width = c.height = 256
   const ctx = c.getContext('2d')
@@ -52,7 +52,7 @@ function leafTexture() {
   return t
 }
 
-// Tapa con forma de sombrerito de bellota; se levanta cuando entran o salen monedas
+// Lid shaped like an acorn cap; it lifts when coins come in or go out
 export function JarLid({ open }) {
   const ref = useRef()
   const tex = useMemo(leafTexture, [])
@@ -80,7 +80,7 @@ export function JarLid({ open }) {
         <meshToonMaterial color="#6E4220" gradientMap={ramp} />
         <Hull scale={[1.01, 1.01, 1.5]} />
       </mesh>
-      {/* cabito */}
+      {/* stem */}
       <mesh position={[0.12, 1.05, 0]} rotation={[0, 0, -0.35]}>
         <capsuleGeometry args={[0.13, 0.5, 6, 12]} />
         <meshToonMaterial color="#6E4220" gradientMap={ramp} />
@@ -90,7 +90,7 @@ export function JarLid({ open }) {
   )
 }
 
-// Las siluetas del vidrio: dos trazos de tinta que siempre miran a la cámara
+// Glass outlines: two ink strokes that always face the camera
 function GlassEdges() {
   const ref = useRef()
   useFrame(({ camera }) => {
@@ -112,13 +112,13 @@ export function JarGlass({ onPoke }) {
   const ramp = toonRamp()
   return (
     <group>
-      {/* vidrio */}
+      {/* glass */}
       <mesh position={[0, JAR_H / 2, 0]} onPointerDown={onPoke} renderOrder={2}>
         <cylinderGeometry args={[JAR_R + 0.12, JAR_R + 0.12, JAR_H, 64, 1, true]} />
         <meshBasicMaterial color="#CDEFFF" transparent opacity={0.28} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <GlassEdges />
-      {/* reflejos tipo dibujo */}
+      {/* cartoon highlights */}
       {[
         [2.35, 0.2, 0.55],
         [2.6, 0.07, 0.45],
@@ -129,13 +129,13 @@ export function JarGlass({ onPoke }) {
           <meshBasicMaterial color="#ffffff" transparent opacity={op} depthWrite={false} side={THREE.DoubleSide} />
         </mesh>
       ))}
-      {/* borde superior */}
+      {/* top rim */}
       <mesh position={[0, JAR_H, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[JAR_R + 0.14, 0.1, 12, 64]} />
         <meshToonMaterial color="#DDF4FF" gradientMap={ramp} />
         <Hull scale={[1.01, 1.01, 1.6]} />
       </mesh>
-      {/* base */}
+      {/* bottom */}
       <mesh position={[0, -0.12, 0]}>
         <cylinderGeometry args={[JAR_R + 0.14, JAR_R + 0.1, 0.24, 64]} />
         <meshToonMaterial color="#A9DDF5" gradientMap={ramp} />
@@ -154,7 +154,7 @@ export function Table() {
         <meshToonMaterial color="#F2B872" gradientMap={ramp} />
         <Hull scale={[1.015, 1.25, 1.015]} />
       </mesh>
-      {/* sombra caricaturesca */}
+      {/* cartoon shadow */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.25, 0.005, 0.2]}>
         <circleGeometry args={[1.85, 48]} />
         <meshBasicMaterial color="#B97A3D" transparent opacity={0.55} />

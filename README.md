@@ -1,83 +1,93 @@
-# 🌰 Bellota — una wallet Cashu en 3D
+# 🌰 Bellota — a 3D Cashu wallet
 
-> Tus sats son bellotas que caen dentro de un frasco.
+> Your sats are acorns that drop into a jar.
 
-**Bellota** es una wallet web de [Cashu](https://cashu.space) (ecash para Bitcoin) donde cada *proof* es una moneda-bellota física en 3D. Recibís por Lightning y caen al frasco; mandás ecash y salen volando; pagás una invoice y se derriten en un rayo. Estética de dibujo animado (cel-shading + contornos de tinta) con una interfaz moderna estilo neo-brutalista.
+**Bellota** (Spanish for *acorn*) is a web wallet for [Cashu](https://cashu.space) — ecash for Bitcoin — where every *proof* is a physical 3D acorn coin. Receive over Lightning and they drop into the jar; send ecash and they fly out; pay an invoice and they melt into a lightning bolt. Cartoon look (cel shading + ink outlines) with a modern neo-brutalist interface.
 
-**▶ Probala: [negr087.github.io/bellota](https://negr087.github.io/bellota/)** · [modo demo sin red](https://negr087.github.io/bellota/?demo)
+**▶ Try it: [negr087.github.io/bellota](https://negr087.github.io/bellota/)** · [offline demo mode](https://negr087.github.io/bellota/?demo)
 
-Hecha para la hackathon **[Nut November 2026](https://nutnovember.org)** · #NutNovember
+<p align="center">
+  <img src="docs/demo.gif" alt="Bellota demo: filling the jar, tapping an acorn, sending ecash, paying a Lightning Address and receiving over Lightning" width="320" />
+  <br />
+  <sub>Demo mode, recorded in a headless browser · <a href="docs/demo.mp4">MP4 version</a></sub>
+</p>
 
-## Qué hace
+Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #NutNovember
+
+## Features
 
 | | |
 |---|---|
-| ⚡ → 🌰 **Recibir por Lightning** | Crea una invoice (NUT-04), espera el pago y emite las bellotas. Las invoices pendientes se siguen revisando aunque cierres la app. |
-| 🌰 **Cobrar ecash** | Pegás un token `cashuA…`/`cashuB…`, muestra monto, mint y nota antes de cobrar. Si el mint es nuevo te avisa y lo agrega. |
-| 🌰 → 🎁 **Enviar ecash** | Arma un token (con nota opcional) en texto + QR. Desde el historial podés ver si ya lo cobraron (NUT-07) y **recuperarlo** si no. |
-| 🌰 → ⚡ **Pagar Lightning** | Cotiza la invoice (NUT-05) mostrando monto + reserva de comisión, paga y guarda el vuelto (NUT-08). Si el pago falla, recupera las proofs que no se gastaron. |
-| 📷 **Escanear QR** | Un botón en el dock lee cualquier QR y te lleva a donde corresponde: token Cashu → cobrar; invoice, Lightning Address o LNURL (o `bitcoin:` unificado con `lightning=`) → pagar. Funciona en iOS y Android; con linterna si el teléfono tiene. |
-| 🏦 **Multi-mint** | Cada mint es un frasco distinto. Agregar, cambiar y quitar mints. |
-| 📧 **Lightning Address y LNURL** | Pagás a `usuario@dominio` (LUD-16) o a un QR `lnurl1…` (LUD-01/06): muestra qué acepta el destinatario, permite mensaje (LUD-12) y **verifica que la invoice sea por el monto exacto** antes de pagarla. |
-| ⏳ **Pagos a prueba de cierres** | Antes de pagar, las proofs se guardan como "en tránsito". Si cerrás la pestaña o el pago queda pendiente, al volver la app le pregunta al mint (NUT-05/07) y te devuelve lo que no se gastó. |
-| 🌱 **Semilla de 12 palabras (NUT-13)** | Cada proof se deriva de una semilla BIP-39, así que con las 12 palabras recuperás el saldo en otro navegador (o en cashu.me, Minibits…). El restore recorre todos los keysets de cada mint (NUT-09) y se queda con lo no gastado (NUT-07). Los contadores se guardan *antes* de cada operación para que nunca se repitan. |
-| 🔐 **Respaldo extra** | También exporta un token por mint con todo el saldo. |
-| 🧸 **Modo demo** | Mint de juguete sin red, para probar la experiencia sin sats reales. |
+| ⚡ → 🌰 **Receive over Lightning** | Creates an invoice (NUT-04), waits for payment and mints the acorns. Pending invoices keep being checked even if you close the app. |
+| 🌰 **Claim ecash** | Paste a `cashuA…`/`cashuB…` token to see the amount, mint and memo before claiming. Unknown mints are flagged and added. |
+| 🌰 → 🎁 **Send ecash** | Builds a token (with an optional note) as text + QR. From your history you can check whether it was claimed (NUT-07) and **reclaim** it if not. |
+| 🌰 → ⚡ **Pay Lightning** | Quotes the invoice (NUT-05) showing amount + fee reserve, pays, and keeps the change (NUT-08). |
+| 📧 **Lightning Address & LNURL** | Pay `user@domain` (LUD-16) or an `lnurl1…` QR (LUD-01/06): shows what the recipient accepts, supports comments (LUD-12) and **checks the invoice is for the exact amount** before paying. |
+| 📷 **QR scanner** | A dock button reads any QR and routes it: Cashu token → claim; invoice, Lightning Address, LNURL or unified `bitcoin:…?lightning=` → pay. Works on iOS and Android, with a torch toggle when available. |
+| 🌱 **12-word seed (NUT-13)** | Every proof is derived from a BIP-39 seed, so your 12 words restore your balance in another browser. Restore walks every keyset of each mint (NUT-09) and keeps what's unspent (NUT-07). Counters are persisted *before* each operation so they're never reused. Uses the standard NUT-13 derivation, so the words should also work in other NUT-13 wallets. |
+| ⏳ **Crash-safe payments** | Before paying, proofs are saved as "in transit". If you close the tab or the payment stays pending, the app asks the mint (NUT-05/07) when you come back and returns whatever wasn't spent. |
+| 🏦 **Multi-mint** | Each mint is its own jar. Add, switch and remove mints. |
+| 🔐 **Token backup** | Also exports one token per mint with the whole balance. |
+| 🧸 **Demo mode** | An offline toy mint to try the experience without real sats. |
 
-### El frasco 3D
+### The 3D jar
 
-- Cada **proof** es una moneda. Cashu parte los montos en potencias de 2, así que el tamaño y el color de la bellota dicen cuánto vale: cobre (1–2), ámbar (4–16), oro (32–128), menta (256–2048), uva (4096+).
-- Física real (Rapier): las monedas caen, rebotan y se apilan.
-- Tocá una bellota para ver su valor; tocá el frasco (o 🫨) para agitarlo.
-- La tapa es un sombrerito de bellota que se abre cuando entran o salen monedas.
-- Si el navegador no soporta WebGL, la wallet funciona igual sin el 3D.
+- Each **proof** is a coin. Cashu splits amounts into powers of 2, so an acorn's size and color tell you its value: copper (1–2), amber (4–16), gold (32–128), mint (256–2048), grape (4096+).
+- Real physics (Rapier): coins fall, bounce and pile up.
+- Tap an acorn to see its value; tap the jar (or 🫨) to shake it.
+- The lid is a little acorn cap that pops open when coins come in or go out.
+- If the browser has no WebGL, the wallet still works without the 3D.
 
-## Correrla
+## Run it
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173
-npm run build        # build de producción en dist/ (Vercel, Netlify, GitHub Pages…)
-npm run build:demo   # un solo index.html autocontenido en modo demo (dist-demo/)
+npm run build        # production build in dist/ (Vercel, Netlify, GitHub Pages…)
+npm run build:demo   # a single self-contained index.html in demo mode (dist-demo/)
 ```
 
-Agregá `?demo` a la URL para entrar directo al modo demo.
+Add `?demo` to the URL to jump straight into demo mode.
 
-Por defecto usa **testnut.cashu.space**, un mint de prueba con sats falsos donde las invoices se pagan solas: ideal para probar. Para sats reales, agregá un mint como `mint.minibits.cash/Bitcoin` desde 🏦.
+By default it uses **testnut.cashu.space**, a test mint with fake sats where invoices pay themselves — perfect for trying things out. For real sats, add a mint such as `mint.minibits.cash/Bitcoin` from 🏦.
+
+Every push to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml`.
 
 ## Stack
 
-- React 18 + Vite (JavaScript plano)
+- React 18 + Vite (plain JavaScript)
 - [`@cashu/cashu-ts`](https://github.com/cashubtc/cashu-ts) v4
-- [`qr-scanner`](https://github.com/nimiq/qr-scanner) (se carga solo al abrir la cámara)
+- [`@scure/bip39`](https://github.com/paulmillr/scure-bip39) for the seed words
+- [`qr-scanner`](https://github.com/nimiq/qr-scanner) (only loaded when the camera opens)
 - three.js + @react-three/fiber + drei + @react-three/rapier
-- Fredoka + Space Grotesk (empaquetadas, sin CDNs)
+- Fredoka + Space Grotesk (bundled, no CDNs)
 
 ```
 src/
-  lib/cashu.js       backend real (cashu-ts): mint, melt, send, receive, estados
-  lib/demo.js        mismo contrato, pero con un mint de juguete en memoria
-  lib/useWallet.js   estado, persistencia (localStorage) y acciones
-  lib/seed.js        semilla BIP-39 y contadores NUT-13 persistentes
-  lib/lnurl.js       Lightning Address / LNURL-pay (bech32 incluido)
-  lib/parse.js       reconoce tokens, invoices y URIs bitcoin:/lightning:/cashu:
-  three/             frasco, monedas, física, materiales toon y contornos
-  ui/                sheets de recibir / enviar / mints / historial
+  lib/cashu.js       real backend (cashu-ts): mint, melt, send, receive, states, restore
+  lib/demo.js        same interface, backed by an in-memory toy mint
+  lib/useWallet.js   state, persistence (localStorage) and actions
+  lib/seed.js        BIP-39 seed and persistent NUT-13 counters
+  lib/lnurl.js       Lightning Address / LNURL-pay (bech32 included)
+  lib/parse.js       recognizes tokens, invoices, addresses and bitcoin:/lightning:/cashu: URIs
+  three/             jar, coins, physics, toon materials and outlines
+  ui/                receive / send / mints / history / seed sheets, QR scanner
 ```
 
-## ⚠️ Advertencias
+## ⚠️ Warnings
 
-- Es software experimental de hackathon: **usá montos chicos**.
-- El ecash vive en el `localStorage` del navegador. Si borrás los datos del sitio, lo recuperás solo con tus 12 palabras: **anotalas**.
-- La semilla y las proofs se guardan sin cifrar en el navegador: cualquiera con acceso a tu navegador puede verlas.
-- Cashu es custodial: el mint guarda los sats. Elegí mints en los que confíes.
+- This is experimental hackathon software: **use small amounts**.
+- Your ecash lives in the browser's `localStorage`. If you clear site data, only your 12 words can bring it back: **write them down**.
+- The seed and proofs are stored unencrypted in the browser: anyone with access to your browser can read them.
+- Cashu is custodial: the mint holds the sats. Pick mints you trust.
 
-## Próximos pasos
+## Roadmap
 
-- Guardar las proofs cifradas en Nostr (NIP-60) y recibir nutzaps (NIP-61)
+- Encrypted proofs on Nostr (NIP-60) and receiving nutzaps (NIP-61)
 - Payment requests (NUT-18)
-- Leer QR animados (UR) para tokens muy grandes
+- Animated (UR) QR codes for very large tokens
+- PIN / passphrase to encrypt the seed at rest
 
-## Licencia
+## License
 
-MIT © 2026 Sebastián ([@negr0](https://njump.me/negr0) en Nostr)
+MIT © 2026 Sebastián ([@negr0](https://njump.me/negr0) on Nostr)

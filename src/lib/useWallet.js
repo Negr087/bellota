@@ -7,9 +7,9 @@ import { resolvePayTarget, requestInvoice } from './lnurl.js'
 export const FORCE_DEMO = typeof __FORCE_DEMO__ !== 'undefined' && __FORCE_DEMO__
 
 export const SUGGESTED_MINTS = [
-  { url: 'https://testnut.cashu.space', note: 'Mint de prueba (sats falsos, las invoices se pagan solas)' },
-  { url: 'https://mint.minibits.cash/Bitcoin', note: 'Minibits — sats reales' },
-  { url: 'https://mint.coinos.io', note: 'Coinos — sats reales' },
+  { url: 'https://testnut.cashu.space', note: 'Test mint (fake sats, invoices pay themselves)' },
+  { url: 'https://mint.minibits.cash/Bitcoin', note: 'Minibits — real sats' },
+  { url: 'https://mint.coinos.io', note: 'Coinos — real sats' },
 ]
 
 const store = {
@@ -25,7 +25,7 @@ const store = {
     try {
       localStorage.setItem(k, v)
     } catch {
-      /* sin storage: seguimos en memoria */
+      /* no storage: keep going in memory */
     }
   },
 }
@@ -40,7 +40,7 @@ function initialMode() {
 function load(mode) {
   const be = mode === 'demo' ? demoBackend : realBackend
   const p = `bellota:${mode}:`
-  const defMints = mode === 'demo' ? [{ url: DEMO_MINT, name: 'Mint de juguete' }] : [{ url: SUGGESTED_MINTS[0].url, name: 'Testnut' }]
+  const defMints = mode === 'demo' ? [{ url: DEMO_MINT, name: 'Toy mint' }] : [{ url: SUGGESTED_MINTS[0].url, name: 'Testnut' }]
   let mints, proofsRaw, history, pending, inflightRaw
   try {
     mints = JSON.parse(store.get(p + 'mints', 'null')) || defMints
@@ -55,14 +55,14 @@ function load(mode) {
     pending = []
     inflightRaw = []
   }
-  // Pagos Lightning cuyo resultado todavía no sabemos: sus proofs no están en el saldo
-  // pero tampoco se perdieron. Se resuelven en segundo plano.
+  // Lightning payments whose outcome we don't know yet: their proofs aren't in the balance
+  // but aren't lost either. They get settled in the background.
   const inflight = []
   for (const f of inflightRaw) {
     try {
       inflight.push({ ...f, proofs: be.deserialize(f.proofs) })
     } catch {
-      /* entrada corrupta: la ignoramos */
+      /* corrupted entry: skip it */
     }
   }
   const proofs = {}
@@ -73,7 +73,7 @@ function load(mode) {
       proofs[url] = []
     }
   }
-  // Modo real: si todavía no hay semilla, la creamos ya (antes de construir cualquier wallet).
+  // Real mode: if there's no seed yet, create it now (before any wallet is built).
   if (be.seed) be.seed.ensure(Object.values(proofs).some((ps) => ps.length))
   const active = store.get(p + 'active', mints[0]?.url)
   return { mints, proofs, history, pending, inflight, active: mints.some((m) => m.url === active) ? active : mints[0]?.url }
@@ -93,7 +93,7 @@ function save(mode, s) {
 }
 
 const normUrl = (u) => u.trim().replace(/\/+$/, '')
-// Pagos que esta pestaña todavía está esperando: el loop de fondo no los toca.
+// Payments this tab is still waiting on: the background loop leaves them alone.
 const meltsInProgress = new Set()
 
 const hid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
@@ -101,9 +101,9 @@ const hid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 export function useWallet() {
   const [mode, setModeState] = useState(initialMode)
   const [state, setState] = useState(() => load(initialMode()))
-  // "fx" le dice a la escena 3D cómo animar el próximo cambio de monedas
+  // "fx" tells the 3D scene how to animate the next coin change
   const [fx, setFx] = useState({ kind: 'idle', n: 0 })
-  const [, setSeedRev] = useState(0) // re-render cuando cambia algo de la semilla
+  const [, setSeedRev] = useState(0) // re-render when something about the seed changes
   const seedChanged = () => setSeedRev((n) => n + 1)
   const ref = useRef(state)
   ref.current = state
@@ -138,7 +138,7 @@ export function useWallet() {
     async (url, { activate = false } = {}) => {
       url = normUrl(url)
       if (!ref.current.mints.some((m) => m.url === url)) {
-        const info = await backend.mintInfo(url) // valida que exista
+        const info = await backend.mintInfo(url) // checks that it exists
         commit((s) => ({ ...s, mints: [...s.mints, { url, name: info.name }] }))
       }
       if (activate) commit((s) => ({ ...s, active: url }))
@@ -153,8 +153,8 @@ export function useWallet() {
       addMint: (url) => ensureMint(url, { activate: true }),
       removeMint: (url) =>
         commit((s) => {
-          if ((s.proofs[url] || []).length) throw new Error('Ese mint todavía tiene saldo')
-          if (s.inflight.some((f) => f.mint === url)) throw new Error('Ese mint tiene un pago en tránsito')
+          if ((s.proofs[url] || []).length) throw new Error('That mint still has a balance')
+          if (s.inflight.some((f) => f.mint === url)) throw new Error('That mint has a payment in transit')
           const mints = s.mints.filter((m) => m.url !== url)
           return { ...s, mints, active: s.active === url ? mints[0]?.url : s.active }
         }),
@@ -173,7 +173,7 @@ export function useWallet() {
           return 'ISSUED'
         }
         if (st !== 'PAID') return st
-        if (!ref.current.pending.some((p) => p.quote === inv.quote)) return 'ISSUED' // ya lo reclamó otro poll
+        if (!ref.current.pending.some((p) => p.quote === inv.quote)) return 'ISSUED' // another poll already claimed it
         commit((s) => ({ ...s, pending: s.pending.filter((p) => p.quote !== inv.quote) }))
         try {
           const proofs = await backend.claimInvoice(inv.mint, inv.amount, inv.quote)
@@ -187,7 +187,7 @@ export function useWallet() {
           )
           return 'CLAIMED'
         } catch (e) {
-          commit((s) => ({ ...s, pending: [inv, ...s.pending] })) // reintentamos más tarde
+          commit((s) => ({ ...s, pending: [inv, ...s.pending] })) // retry later
           throw e
         }
       },
@@ -215,7 +215,7 @@ export function useWallet() {
       async sendEcash(amount, memo) {
         const mint = ref.current.active
         const proofs = ref.current.proofs[mint] || []
-        if (sumOf(proofs) < amount) throw new Error('No te alcanzan las bellotas en este mint')
+        if (sumOf(proofs) < amount) throw new Error("You don't have enough acorns on this mint")
         const { keep, token } = await backend.sendEcash(mint, amount, proofs, memo)
         fire('toss')
         commit((s) => addHistory(setProofs(s, mint, keep), { type: 'ecash-out', amount, mint, token, memo }))
@@ -231,28 +231,28 @@ export function useWallet() {
       // 🌰 → ⚡
       meltQuote: (invoice) => backend.meltQuote(ref.current.active, invoice),
 
-      // ⚡ Lightning Address / LNURL-pay: primero qué acepta, después la invoice y la cotización
+      // ⚡ Lightning Address / LNURL-pay: first what it accepts, then the invoice and the quote
       async resolvePayTarget(target) {
-        if (backend.isDemo) return { target, domain: 'demo', min: 1, max: 1_000_000, commentAllowed: 140, desc: `Pago de prueba a ${target}` }
+        if (backend.isDemo) return { target, domain: 'demo', min: 1, max: 1_000_000, commentAllowed: 140, desc: `Test payment to ${target}` }
         return resolvePayTarget(target)
       },
       async quoteAddress(info, sats, comment) {
         const pr = backend.isDemo ? `lnbc${sats * 10}n1demo${hid()}${hid()}` : await requestInvoice(info, sats, comment)
         const quote = await backend.meltQuote(ref.current.active, pr)
-        // No confiamos en el servidor: la invoice tiene que ser exactamente por lo que pediste.
-        if (quote.amount !== sats) throw new Error(`El servidor devolvió una invoice por ${quote.amount} sats en vez de ${sats}. No la pago.`)
+        // Don't trust the server: the invoice must be for exactly what you asked.
+        if (quote.amount !== sats) throw new Error(`The server returned an invoice for ${quote.amount} sats instead of ${sats}. Not paying it.`)
         return { ...quote, to: info.target.startsWith('lnurl') ? info.domain : info.target, memo: comment || undefined }
       },
       async payInvoice(quote) {
         const mint = ref.current.active
         const proofs = ref.current.proofs[mint] || []
-        if (sumOf(proofs) < quote.amount + quote.fee) throw new Error('No te alcanza (monto + reserva de comisión)')
+        if (sumOf(proofs) < quote.amount + quote.fee) throw new Error('Not enough balance (amount + fee reserve)')
         const id = hid()
         const dropInflight = (s) => ({ ...s, inflight: s.inflight.filter((f) => f.id !== id) })
         meltsInProgress.add(id)
         try {
           const res = await backend.payInvoice(mint, quote, proofs, ({ keep, send }) =>
-            // Persistimos ANTES del melt: las proofs viejas ya no valen después del swap.
+            // Persist BEFORE the melt: the old proofs are worthless after the swap.
             commit((s) => ({
               ...setProofs(s, mint, keep),
               inflight: [
@@ -266,7 +266,7 @@ export function useWallet() {
             commit((s) => addHistory(s, { type: 'ln-out', amount: quote.amount, mint, to: quote.to, memo: quote.memo, pending: true, inflightId: id }))
             return 'PENDING'
           }
-          const fee = quote.fee - sumOf(res.change) // lo que realmente se quedó la red
+          const fee = quote.fee - sumOf(res.change) // what the network actually kept
           commit((s) =>
             addHistory(dropInflight(setProofs(s, mint, [...(s.proofs[mint] || []), ...res.change])), {
               type: 'ln-out',
@@ -281,18 +281,18 @@ export function useWallet() {
         } catch (e) {
           if (e.recovered)
             commit((s) => dropInflight(setProofs(s, mint, [...(s.proofs[mint] || []), ...e.recovered])))
-          else if (e.unknown) e.message += ' — No sabemos si se pagó: las bellotas quedan en tránsito hasta confirmarlo.'
+          else if (e.unknown) e.message += " — We don't know if it went through: the acorns stay in transit until it's confirmed."
           throw e
         } finally {
           meltsInProgress.delete(id)
         }
       },
-      // Revisa con el mint un pago en tránsito y lo cierra si ya se resolvió.
+      // Checks an in-transit payment with the mint and closes it if it's settled.
       async resolveInflight(f) {
         const r = await backend.checkMelt(f.mint, f.quote, f.proofs)
         if (r.state === 'PENDING') return 'PENDING'
         commit((s) => {
-          if (!s.inflight.some((x) => x.id === f.id)) return s // ya lo resolvió otro tick
+          if (!s.inflight.some((x) => x.id === f.id)) return s // another tick already settled it
           let next = { ...s, inflight: s.inflight.filter((x) => x.id !== f.id) }
           const wasLogged = s.history.some((h) => h.inflightId === f.id)
           if (r.state === 'PAID') {
@@ -309,7 +309,7 @@ export function useWallet() {
         return r.state
       },
 
-      // Respaldo: un token por mint con todo el saldo
+      // Backup: one token per mint with the whole balance
       exportBackup() {
         return ref.current.mints
           .map((m) => ({ mint: m.url, proofs: ref.current.proofs[m.url] || [] }))
@@ -318,12 +318,12 @@ export function useWallet() {
       },
       shake: () => fire('shake'),
 
-      // 🌱 Semilla (NUT-13)
+      // 🌱 Seed (NUT-13)
       markBackedUp() {
         backend.seed?.markBackedUp()
         seedChanged()
       },
-      // Recupera el saldo de una semilla en los mints indicados. Devuelve el resultado por mint.
+      // Restores a seed's balance on the given mints. Returns the result per mint.
       async restoreFromSeed(mnemonic, urls, onProgress) {
         const hadBalance = Object.values(ref.current.proofs).some((ps) => ps.length)
         backend.seed.replace(mnemonic, hadBalance)
@@ -352,7 +352,7 @@ export function useWallet() {
         seedChanged()
         return results
       },
-      // Pasa el saldo de antes de la semilla a proofs derivadas de ella (así la semilla lo cubre).
+      // Moves pre-seed balance into seed-derived proofs (so the seed covers it).
       async migrateToSeed() {
         let moved = 0
         for (const [url, ps] of Object.entries(ref.current.proofs)) {
@@ -375,7 +375,7 @@ export function useWallet() {
   const total = Object.values(state.proofs).reduce((s, ps) => s + sumOf(ps), 0)
   const inTransit = state.inflight.filter((f) => f.mint === state.active).reduce((s, f) => s + sumOf(f.proofs), 0)
 
-  // Reintentar invoices pendientes al abrir la app
+  // Retry pending invoices when the app opens
   useEffect(() => {
     let alive = true
     const tick = async () => {
@@ -388,16 +388,16 @@ export function useWallet() {
         try {
           await actions.pollInvoice(inv)
         } catch {
-          /* red caída: reintentamos después */
+          /* network down: retry later */
         }
       }
       for (const f of ref.current.inflight) {
         if (!alive) return
-        if (meltsInProgress.has(f.id)) continue // el pago sigue en curso en esta pestaña
+        if (meltsInProgress.has(f.id)) continue // the payment is still running in this tab
         try {
           await actions.resolveInflight(f)
         } catch {
-          /* red caída: reintentamos después */
+          /* network down: retry later */
         }
       }
     }

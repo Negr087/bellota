@@ -1,7 +1,7 @@
 {
   "name": "bellota",
   "version": "0.1.0",
-  "description": "Bellota — wallet Cashu (ecash) en 3D. Nut November 2026.",
+  "description": "Bellota — a 3D Cashu (ecash) wallet. Nut November 2026.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

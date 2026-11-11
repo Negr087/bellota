@@ -61,7 +61,7 @@ function LiveCoin({ item, bodies, onPick }) {
   )
 }
 
-// Moneda que se va: "toss" = sale volando por arriba (envío ecash), "melt" = se derrite en un rayo (pago LN)
+// A coin on its way out: "toss" = flies out the top (ecash send), "melt" = melts into a bolt (LN payment)
 function LeavingCoin({ item, onDone }) {
   const ref = useRef()
   const t0 = useRef(null)
@@ -209,7 +209,7 @@ export function Coins({ proofs, fx, amountOf }) {
     })
   }, [wanted])
 
-  // Agitar el frasco
+  // Shake the jar
   useEffect(() => {
     if (fx.kind !== 'shake') return
     for (const ref of bodies.current.values()) {
@@ -220,7 +220,7 @@ export function Coins({ proofs, fx, amountOf }) {
     }
   }, [fx])
 
-  // Etiqueta flotante sobre la moneda tocada
+  // Floating label over the tapped coin
   useFrame(() => {
     if (!picked || !tip.current) return
     const b = bodies.current.get(picked)?.current
@@ -253,8 +253,8 @@ export function Coins({ proofs, fx, amountOf }) {
         <group ref={tip}>
           <Html center zIndexRange={[20, 10]} style={{ pointerEvents: 'none' }}>
             <div className="coin-tip" style={{ '--tier': tierOf(pickedItem.amount).face }}>
-              <b>{pickedItem.amount.toLocaleString('es-AR')}</b> sat{pickedItem.amount === 1 ? '' : 's'}
-              <small>bellota de {tierOf(pickedItem.amount).name}</small>
+              <b>{pickedItem.amount.toLocaleString('en-US')}</b> sat{pickedItem.amount === 1 ? '' : 's'}
+              <small>{tierOf(pickedItem.amount).name} acorn</small>
             </div>
           </Html>
         </group>

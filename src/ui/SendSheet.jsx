@@ -13,18 +13,18 @@ function EcashOut({ w, toast }) {
   if (token)
     return (
       <div className="stack center">
-        <QR value={token} label="Token Cashu" />
+        <QR value={token} label="Cashu token" />
         <p className="big-amount">{fmtSats(n)} sats</p>
         <p className="hint center">
-          Mandale este token a quien quieras (chat, mail, Nostr, papelito…). Lo cobra con cualquier wallet Cashu. Si nadie lo cobra, lo podés recuperar desde el historial.
+          Send this token to anyone (chat, email, Nostr, a scrap of paper…). They can claim it with any Cashu wallet. If nobody claims it, you can reclaim it from your history.
         </p>
         <div className="row">
           <CopyBtn text={token} className="btn primary">
-            Copiar token 📋
+            Copy token 📋
           </CopyBtn>
           {navigator.share && (
             <button className="btn ghost" onClick={() => navigator.share({ text: token }).catch(() => {})}>
-              Compartir
+              Share
             </button>
           )}
         </div>
@@ -34,9 +34,9 @@ function EcashOut({ w, toast }) {
 
   return (
     <div className="stack">
-      <p className="hint">Sacás bellotas del frasco y las convertís en un token que se puede mandar como texto o QR.</p>
+      <p className="hint">Take acorns out of the jar and turn them into a token you can send as text or a QR code.</p>
       <AmountInput value={amount} onChange={setAmount} max={w.balance} />
-      <input className="text-in" placeholder="Nota (opcional)" value={memo} maxLength={80} onChange={(e) => setMemo(e.target.value)} />
+      <input className="text-in" placeholder="Note (optional)" value={memo} maxLength={80} onChange={(e) => setMemo(e.target.value)} />
       {err && <p className="error">{err}</p>}
       <button
         className="btn primary xl"
@@ -46,7 +46,7 @@ function EcashOut({ w, toast }) {
           setErr('')
           try {
             setToken(await w.actions.sendEcash(n, memo.trim() || undefined))
-            toast(`🌰 ${fmtSats(n)} sats listos para mandar`)
+            toast(`🌰 ${fmtSats(n)} sats ready to send`)
           } catch (e) {
             setErr(errMsg(e))
           } finally {
@@ -54,7 +54,7 @@ function EcashOut({ w, toast }) {
           }
         }}
       >
-        {busy ? 'Armando token…' : n > w.balance ? 'No te alcanza' : 'Crear token 🌰'}
+        {busy ? 'Creating token…' : n > w.balance ? 'Not enough balance' : 'Create token 🌰'}
       </button>
     </div>
   )
@@ -66,7 +66,7 @@ function LightningOut({ w, onDone, initial = '' }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   // Lightning Address / LNURL
-  const [target, setTarget] = useState(null) // lo que acepta el destinatario
+  const [target, setTarget] = useState(null) // what the recipient accepts
   const [looking, setLooking] = useState(false)
   const [amount, setAmount] = useState('')
   const [comment, setComment] = useState('')
@@ -88,13 +88,13 @@ function LightningOut({ w, onDone, initial = '' }) {
     }
   }
 
-  // Si venimos del escáner con una invoice, cotizamos de una
+  // Coming from the scanner with an invoice: quote it right away
   useEffect(() => {
     if (initial && classify(initial).kind === 'invoice') run(async () => setQuote(await w.actions.meltQuote(initial)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Al escribir una dirección, averiguamos qué acepta (con un respiro para no consultar letra por letra)
+  // When an address is typed, look up what it accepts (debounced so we don't query on every keystroke)
   useEffect(() => {
     setTarget(null)
     if (!isAddr) return
@@ -125,11 +125,11 @@ function LightningOut({ w, onDone, initial = '' }) {
 
   return (
     <div className="stack">
-      <p className="hint">Pegá una invoice o una Lightning Address (usuario@dominio): el mint paga y se derriten las bellotas necesarias.</p>
+      <p className="hint">Paste an invoice or a Lightning Address (user@domain): the mint pays it and the acorns needed melt away.</p>
       <textarea
         className="token-area"
         rows={isAddr ? 1 : 3}
-        placeholder="lnbc… o usuario@dominio.com"
+        placeholder="lnbc… or user@domain.com"
         spellCheck={false}
         autoCapitalize="none"
         autoComplete="off"
@@ -143,33 +143,33 @@ function LightningOut({ w, onDone, initial = '' }) {
       {!quote && (
         <ScanBtn
           accept={['invoice', 'address']}
-          hint="Apuntá al QR de la invoice o la dirección"
+          hint="Point at the invoice or address QR"
           onScan={(v) => {
             setErr('')
             setText(v)
             if (classify(v).kind === 'invoice') run(async () => setQuote(await w.actions.meltQuote(v)))
           }}
-          onWrong={(r) => setErr(r.kind === 'token' ? 'Eso es un token Cashu: para cobrarlo andá a Recibir → Ecash.' : 'Ese QR no es una invoice ni una Lightning Address.')}
+          onWrong={(r) => setErr(r.kind === 'token' ? 'That is a Cashu token: to claim it, go to Receive → Ecash.' : "That QR isn't an invoice or a Lightning Address.")}
         />
       )}
 
       {isAddr && !quote && (
         <>
-          {looking && <p className="muted">Buscando {value}…</p>}
+          {looking && <p className="muted">Looking up {value}…</p>}
           {target && (
             <>
               <div className="token-card">
                 <b>⚡ {target.target.startsWith('lnurl') ? target.domain : target.target}</b>
                 {target.desc && <div className="muted">{target.desc}</div>}
                 <div className="muted">
-                  Acepta de {fmtSats(target.min)} a {fmtSats(target.max)} sats
+                  Accepts {fmtSats(target.min)} to {fmtSats(target.max)} sats
                 </div>
               </div>
               <AmountInput value={amount} onChange={setAmount} max={max} />
               {target.commentAllowed > 0 && (
                 <input
                   className="text-in"
-                  placeholder="Mensaje (opcional)"
+                  placeholder="Message (optional)"
                   value={comment}
                   maxLength={target.commentAllowed}
                   onChange={(e) => setComment(e.target.value)}
@@ -182,11 +182,11 @@ function LightningOut({ w, onDone, initial = '' }) {
 
       {quote && (
         <div className="token-card">
-          {quote.to && <b>⚡ a {quote.to}</b>}
+          {quote.to && <b>⚡ to {quote.to}</b>}
           <div className="big-amount">{fmtSats(quote.amount)} sats</div>
-          <div className="muted">+ hasta {fmtSats(quote.fee)} sats de reserva de comisión (lo que sobre vuelve)</div>
+          <div className="muted">+ up to {fmtSats(quote.fee)} sats fee reserve (whatever's left comes back)</div>
           {quote.memo && <div className="memo">“{quote.memo}”</div>}
-          {quote.amount + quote.fee > w.balance && <div className="warn">No te alcanza: tenés {fmtSats(w.balance)} sats en este mint.</div>}
+          {quote.amount + quote.fee > w.balance && <div className="warn">Not enough: you have {fmtSats(w.balance)} sats on this mint.</div>}
         </div>
       )}
       {err && <p className="error">{err}</p>}
@@ -197,11 +197,11 @@ function LightningOut({ w, onDone, initial = '' }) {
             disabled={!amountOk || busy}
             onClick={() => run(async () => setQuote(await w.actions.quoteAddress(target, n, comment.trim())))}
           >
-            {busy ? 'Pidiendo invoice…' : target && n && !amountOk ? `Entre ${fmtSats(target.min)} y ${fmtSats(target.max)} sats` : 'Ver cuánto sale'}
+            {busy ? 'Requesting invoice…' : target && n && !amountOk ? `Between ${fmtSats(target.min)} and ${fmtSats(target.max)} sats` : 'Get quote'}
           </button>
         ) : (
           <button className="btn primary xl" disabled={!text.trim() || busy} onClick={() => run(async () => setQuote(await w.actions.meltQuote(value)))}>
-            {busy ? 'Consultando…' : 'Ver cuánto sale'}
+            {busy ? 'Checking…' : 'Get quote'}
           </button>
         )
       ) : (
@@ -214,17 +214,17 @@ function LightningOut({ w, onDone, initial = '' }) {
                 const st = await w.actions.payInvoice(quote)
                 onDone(
                   st === 'PENDING'
-                    ? '⏳ Pago en curso: te avisamos en el historial'
-                    : `⚡ Pagaste ${fmtSats(quote.amount)} sats${quote.to ? ` a ${quote.to}` : ''}`,
+                    ? '⏳ Payment in progress: check your history'
+                    : `⚡ Paid ${fmtSats(quote.amount)} sats${quote.to ? ` to ${quote.to}` : ''}`,
                 )
               })
             }
           >
-            {busy ? 'Pagando…' : `Pagar ${fmtSats(quote.amount)} sats ⚡`}
+            {busy ? 'Paying…' : `Pay ${fmtSats(quote.amount)} sats ⚡`}
           </button>
           {quote.to && !busy && (
             <button className="btn ghost" onClick={() => setQuote(null)}>
-              Cambiar monto
+              Change amount
             </button>
           )}
         </>
@@ -236,13 +236,13 @@ function LightningOut({ w, onDone, initial = '' }) {
 export default function SendSheet({ w, onClose, toast, initialInvoice }) {
   const [tab, setTab] = useState(initialInvoice ? 'ln' : 'ecash')
   return (
-    <Sheet title="Enviar" emoji="📤" onClose={onClose}>
+    <Sheet title="Send" emoji="📤" onClose={onClose}>
       <Tabs
         value={tab}
         onChange={setTab}
         options={[
           { value: 'ecash', label: '🌰 Ecash' },
-          { value: 'ln', label: '⚡ Pagar Lightning' },
+          { value: 'ln', label: '⚡ Pay Lightning' },
         ]}
       />
       {tab === 'ecash' ? (

@@ -1,6 +1,6 @@
-// Semilla BIP-39 + contadores NUT-13.
-// Con la semilla, cada secreto de cada proof se deriva de (semilla, keyset, contador):
-// si se pierde el navegador, el mint puede volver a firmar lo mismo y recuperamos todo.
+// BIP-39 seed + NUT-13 counters.
+// With a seed, every proof secret is derived from (seed, keyset, counter):
+// if the browser is lost, the mint can re-sign the same outputs and everything comes back.
 import { generateMnemonic, validateMnemonic } from '@scure/bip39'
 import { wordlist } from '@scure/bip39/wordlists/english'
 import { mnemonicToSeedSync } from '@cashu/cashu-ts'
@@ -9,7 +9,7 @@ const K = {
   mnemonic: 'bellota:real:mnemonic',
   counters: 'bellota:real:counters',
   backedUp: 'bellota:real:seedBackedUp',
-  legacy: 'bellota:real:legacyProofs', // hay saldo de antes de la semilla (no se recupera con ella)
+  legacy: 'bellota:real:legacyProofs', // there's balance from before the seed (the seed can't restore it)
 }
 
 const get = (k) => {
@@ -24,20 +24,20 @@ const set = (k, v) => {
     if (v == null) localStorage.removeItem(k)
     else localStorage.setItem(k, v)
   } catch {
-    /* sin storage */
+    /* no storage */
   }
 }
 
 export const normalizeWords = (s) => s.trim().toLowerCase().split(/\s+/).join(' ')
 export const isValidMnemonic = (m) => validateMnemonic(normalizeWords(m), wordlist)
-export const newMnemonic = () => generateMnemonic(wordlist, 128) // 12 palabras
+export const newMnemonic = () => generateMnemonic(wordlist, 128) // 12 words
 
 let cachedSeed = null
 let cachedFor = null
 
 export const seedStore = {
   mnemonic: () => get(K.mnemonic),
-  // Semilla de 64 bytes (cacheada: PBKDF2 es lento)
+  // 64-byte seed (cached: PBKDF2 is slow)
   seedBytes() {
     const m = get(K.mnemonic)
     if (!m) return null
@@ -47,7 +47,7 @@ export const seedStore = {
     }
     return cachedSeed
   },
-  // Crea una semilla si no hay. `hadBalance`: el saldo previo queda marcado como "legacy".
+  // Creates a seed if there is none. `hadBalance`: existing balance is flagged as "legacy".
   ensure(hadBalance) {
     if (get(K.mnemonic)) return false
     set(K.mnemonic, newMnemonic())
@@ -56,13 +56,13 @@ export const seedStore = {
     if (hadBalance) set(K.legacy, '1')
     return true
   },
-  // Reemplaza la semilla (restore). Los contadores arrancan de cero: el restore los adelanta.
+  // Replaces the seed (restore). Counters start at zero: the restore moves them forward.
   replace(mnemonic, hadBalance) {
     const m = normalizeWords(mnemonic)
-    if (m === get(K.mnemonic)) return set(K.backedUp, '1') // misma semilla: no tocamos contadores
+    if (m === get(K.mnemonic)) return set(K.backedUp, '1') // same seed: leave counters alone
     set(K.mnemonic, m)
     set(K.counters, null)
-    set(K.backedUp, '1') // si la tipeó, ya la tiene anotada
+    set(K.backedUp, '1') // if they typed it, they have it written down
     set(K.legacy, hadBalance ? '1' : null)
   },
   backedUp: () => get(K.backedUp) === '1',
@@ -71,8 +71,8 @@ export const seedStore = {
   clearLegacy: () => set(K.legacy, null),
 }
 
-// CounterSource persistente. Se escribe en localStorage ANTES de devolver el rango:
-// así un contador nunca se reusa aunque la pestaña se cierre en mitad de una operación.
+// Persistent CounterSource. Writes to localStorage BEFORE returning the range,
+// so a counter is never reused even if the tab closes mid-operation.
 const readCounters = () => {
   try {
     return JSON.parse(get(K.counters) || '{}')
@@ -95,7 +95,7 @@ export const counterSource = {
   async reserveAt(keysetId, start, count) {
     const c = readCounters()
     const next = c[keysetId] || 0
-    if (start < next) throw new Error(`Contador ${start} ya usado en el keyset ${keysetId}`)
+    if (start < next) throw new Error(`Counter ${start} already used on keyset ${keysetId}`)
     c[keysetId] = start + count
     writeCounters(c)
     return { start, count }

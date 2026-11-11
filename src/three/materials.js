@@ -2,7 +2,7 @@ import * as THREE from 'three'
 
 export const INK = '#2B1D14'
 
-// Rampa de 3 tonos para el sombreado "cel" (look de dibujo animado)
+// 3-tone ramp for "cel" shading (cartoon look)
 let _ramp
 export function toonRamp() {
   if (_ramp) return _ramp
@@ -14,17 +14,17 @@ export function toonRamp() {
   return _ramp
 }
 
-// Colores por denominación (las proofs Cashu son potencias de 2)
+// Colors by denomination (Cashu proofs are powers of 2)
 const TIERS = [
-  { max: 2, face: '#E08A4E', rim: '#B9622C', name: 'cobre' },
-  { max: 16, face: '#F5A524', rim: '#C97D0B', name: 'ámbar' },
-  { max: 128, face: '#FFD23F', rim: '#D9A800', name: 'oro' },
-  { max: 2048, face: '#7BE0AD', rim: '#3FAF78', name: 'menta' },
-  { max: Infinity, face: '#B58CFF', rim: '#7E55D6', name: 'uva' },
+  { max: 2, face: '#E08A4E', rim: '#B9622C', name: 'copper' },
+  { max: 16, face: '#F5A524', rim: '#C97D0B', name: 'amber' },
+  { max: 128, face: '#FFD23F', rim: '#D9A800', name: 'gold' },
+  { max: 2048, face: '#7BE0AD', rim: '#3FAF78', name: 'mint' },
+  { max: Infinity, face: '#B58CFF', rim: '#7E55D6', name: 'grape' },
 ]
 export const tierOf = (amount) => TIERS.find((t) => amount <= t.max)
 
-// Radio de la moneda según el monto: más sats, moneda más grande
+// Coin radius by amount: more sats, bigger coin
 export const coinRadius = (amount) => Math.min(0.72, 0.27 + 0.04 * Math.log2(Math.max(1, amount)))
 export const COIN_HALF = 0.075
 
@@ -41,7 +41,7 @@ function drawAcorn(ctx, cx, cy, s, fill) {
   ctx.lineWidth = 7
   ctx.lineJoin = 'round'
   ctx.strokeStyle = INK
-  // nuez
+  // nut
   ctx.beginPath()
   ctx.moveTo(-34, -4)
   ctx.bezierCurveTo(-34, 30, -14, 52, 0, 56)
@@ -50,12 +50,12 @@ function drawAcorn(ctx, cx, cy, s, fill) {
   ctx.fillStyle = fill
   ctx.fill()
   ctx.stroke()
-  // brillo
+  // shine
   ctx.beginPath()
   ctx.ellipse(-14, 14, 6, 14, 0.3, 0, Math.PI * 2)
   ctx.fillStyle = 'rgba(255,255,255,.55)'
   ctx.fill()
-  // sombrerito
+  // little cap
   ctx.beginPath()
   ctx.moveTo(-42, 0)
   ctx.bezierCurveTo(-42, -30, 42, -30, 42, 0)
@@ -63,7 +63,7 @@ function drawAcorn(ctx, cx, cy, s, fill) {
   ctx.fillStyle = '#8B5A2B'
   ctx.fill()
   ctx.stroke()
-  // cabito
+  // stem
   ctx.beginPath()
   ctx.moveTo(0, -22)
   ctx.quadraticCurveTo(4, -36, 12, -40)
@@ -83,13 +83,13 @@ export function capTexture(amount) {
   const ctx = c.getContext('2d')
   ctx.fillStyle = t.face
   ctx.fillRect(0, 0, S, S)
-  // anillo grabado
+  // engraved ring
   ctx.beginPath()
   ctx.arc(S / 2, S / 2, S / 2 - 22, 0, Math.PI * 2)
   ctx.lineWidth = 8
   ctx.strokeStyle = t.rim
   ctx.stroke()
-  // puntitos del borde
+  // rim dots
   for (let i = 0; i < 24; i++) {
     const a = (i / 24) * Math.PI * 2
     ctx.beginPath()
@@ -121,12 +121,12 @@ export function coinMaterials(amount) {
   const ramp = toonRamp()
   const side = new THREE.MeshToonMaterial({ color: t.rim, gradientMap: ramp })
   const cap = new THREE.MeshToonMaterial({ map: capTexture(amount), gradientMap: ramp })
-  const mats = [side, cap, cap] // CylinderGeometry: [lateral, tapa arriba, tapa abajo]
+  const mats = [side, cap, cap] // CylinderGeometry: [side, top cap, bottom cap]
   matCache.set(amount, mats)
   return mats
 }
 
-// Las fuentes web cargan después: regeneramos las texturas cuando estén listas
+// Web fonts load later: regenerate the textures once they're ready
 export function refreshTexturesWhenFontsReady() {
   if (!document.fonts?.ready) return
   document.fonts.ready.then(() => {
@@ -139,8 +139,8 @@ export function refreshTexturesWhenFontsReady() {
   })
 }
 
-// Contorno de dibujo animado ("inverted hull"): copia la geometría del padre,
-// la agranda un poco y la pinta de tinta del lado de atrás.
+// Cartoon outline ("inverted hull"): copies the parent's geometry,
+// scales it up slightly and paints the back faces in ink.
 import { useLayoutEffect, useRef, createElement } from 'react'
 const hullMat = new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide })
 const noRay = () => null

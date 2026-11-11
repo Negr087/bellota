@@ -16,7 +16,7 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
     try {
       await w.actions.addMint(u)
       setUrl('')
-      toast('Mint agregado 🏦')
+      toast('Mint added 🏦')
     } catch (e) {
       setErr(errMsg(e))
     } finally {
@@ -25,10 +25,10 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
   }
 
   return (
-    <Sheet title="Mints y ajustes" emoji="🏦" onClose={onClose}>
+    <Sheet title="Mints & settings" emoji="🏦" onClose={onClose}>
       <div className="stack">
         <p className="hint">
-          Un <b>mint</b> es quien emite el ecash: guarda los sats y firma tus bellotas. Elegí en cuál trabajar; cada uno es un frasco distinto.
+          A <b>mint</b> issues the ecash: it holds the sats and signs your acorns. Pick which one to use; each one is its own jar.
         </p>
         <ul className="mint-list">
           {mints.map((m) => {
@@ -46,7 +46,7 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
                 {!bal && mints.length > 1 && (
                   <button
                     className="icon-btn small"
-                    aria-label="Quitar mint"
+                    aria-label="Remove mint"
                     onClick={() => {
                       try {
                         w.actions.removeMint(m.url)
@@ -66,9 +66,9 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
         {!w.backend.isDemo && (
           <>
             <div className="row">
-              <input className="text-in grow" placeholder="https://mint.ejemplo.com" value={url} onChange={(e) => setUrl(e.target.value)} />
+              <input className="text-in grow" placeholder="https://mint.example.com" value={url} onChange={(e) => setUrl(e.target.value)} />
               <button className="btn primary" disabled={!/^https?:\/\/\S+$/.test(url.trim()) || busy} onClick={() => add(url)}>
-                {busy ? '…' : 'Agregar'}
+                {busy ? '…' : 'Add'}
               </button>
             </div>
             <div className="suggest">
@@ -82,40 +82,40 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
         )}
         {err && <p className="error">{err}</p>}
 
-        <h3>Modo</h3>
+        <h3>Mode</h3>
         {FORCE_DEMO ? (
-          <p className="hint">Esta es la versión demo: sin internet, con sats de juguete. Descargá el proyecto para usar mints reales.</p>
+          <p className="hint">This is the demo build: offline, with toy sats. Download the project to use real mints.</p>
         ) : (
           <div className="seg">
             <button className={w.mode === 'real' ? 'on' : ''} onClick={() => w.setMode('real')}>
-              Mints reales
+              Real mints
             </button>
             <button className={w.mode === 'demo' ? 'on' : ''} onClick={() => w.setMode('demo')}>
-              Demo (de juguete)
+              Demo (toy sats)
             </button>
           </div>
         )}
 
-        <h3>Respaldo</h3>
+        <h3>Backup</h3>
         {w.backend.seed && (
           <>
             <p className="hint">
-              Tus bellotas salen de una <b>semilla de 12 palabras</b> (NUT-13): con ellas recuperás el saldo si perdés este navegador.
+              Your acorns come from a <b>12-word seed</b> (NUT-13): with it you can restore your balance if you lose this browser.
             </p>
             <button className="btn primary" onClick={onSeed}>
-              🌱 Mis 12 palabras / Recuperar
+              🌱 My 12 words / Restore
             </button>
           </>
         )}
         <p className="hint">
-          También podés exportar un token por mint con todo el saldo (sirve en cualquier wallet Cashu, pero es una foto del momento: no incluye lo que recibas después).
+          {w.backend.seed ? 'You can also export' : 'Export'} one token per mint with the whole balance (works in any Cashu wallet, but it's a snapshot: it won't include anything you receive later).
         </p>
         {!backup ? (
           <button className="btn ghost" onClick={() => setBackup(w.actions.exportBackup())}>
-            Exportar respaldo 🔐
+            Export backup 🔐
           </button>
         ) : backup.length === 0 ? (
-          <p className="muted">No hay saldo para respaldar.</p>
+          <p className="muted">No balance to back up.</p>
         ) : (
           backup.map((b) => (
             <div key={b.mint} className="token-card">
@@ -123,7 +123,7 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
                 {fmtSats(b.amount)} sats · {shortUrl(b.mint)}
               </b>
               <code className="mono-clip">{b.token}</code>
-              <CopyBtn text={b.token}>Copiar</CopyBtn>
+              <CopyBtn text={b.token}>Copy</CopyBtn>
             </div>
           ))
         )}

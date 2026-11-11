@@ -33,7 +33,7 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 
 .app { position: relative; height: 100%; width: 100%; overflow: hidden; }
 
-/* ---------- fondo ---------- */
+/* ---------- background ---------- */
 .bg {
   position: absolute; inset: 0; z-index: 0;
   background:
@@ -56,7 +56,7 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
   font-family: var(--display); font-size: 1.3rem;
 }
 
-/* ---------- arriba ---------- */
+/* ---------- top bar ---------- */
 .top {
   position: absolute; z-index: 5; top: 0; left: 0; right: 0;
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
@@ -83,7 +83,7 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 .icon-btn.small { width: 34px; height: 34px; border-radius: 10px; font-size: .9rem; }
 .icon-btn:active, .btn:active, .dock-btn:active, .chip:active, .mint-chip:active { transform: translate(2px, 2px); box-shadow: none; }
 
-/* ---------- saldo ---------- */
+/* ---------- balance ---------- */
 .balance {
   position: absolute; z-index: 4; left: 50%; transform: translateX(-50%);
   top: calc(max(14px, env(safe-area-inset-top)) + 58px);
@@ -129,7 +129,7 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
   display: grid; place-items: center; font-size: 1.05rem; line-height: 1;
 }
 
-/* ---------- botones ---------- */
+/* ---------- buttons ---------- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; text-decoration: none;
   background: var(--paper); border: var(--b); border-radius: 14px; box-shadow: var(--shadow-s);
@@ -262,9 +262,9 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 @keyframes fade { from { opacity: 0; } }
 @keyframes pulse { 50% { transform: scale(1.35); } }
 
-/* ---------- escáner QR ---------- */
+/* ---------- QR scanner ---------- */
 .dock-btn.scan { background: var(--paper); }
-/* 4 botones en el dock: en teléfonos achicamos los cuadrados y sacamos los circulitos */
+/* 4 buttons in the dock: on phones, shrink the square ones and drop the little circles */
 @media (max-width: 440px) {
   .dock { gap: 8px; }
   .dock-btn { font-size: 1.15rem; gap: 5px; }
@@ -300,7 +300,7 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 }
 .scan-torch { position: absolute; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }
 
-/* ---------- semilla ---------- */
+/* ---------- seed ---------- */
 .seed-nag {
   position: absolute; z-index: 4; top: 172px; left: 50%; transform: translateX(-50%);
   width: min(360px, calc(100vw - 32px)); display: flex; align-items: center; gap: 8px;
@@ -319,12 +319,12 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 }
 .words li span { font-size: .7rem; opacity: .5; min-width: 1.2em; }
 @media (max-width: 340px) { .words { grid-template-columns: repeat(2, 1fr); } }
-.mint-picks { display: flex; flex-direction: column; gap: 6px; }
-.mint-pick {
+.seed-mints { display: flex; flex-direction: column; gap: 6px; }
+.seed-mint {
   display: flex; align-items: center; gap: 10px; background: var(--paper); border: 2px solid var(--ink);
   border-radius: 12px; padding: 9px 12px; font-weight: 600; font-size: .9rem; overflow-wrap: anywhere;
 }
-.mint-pick input { width: 18px; height: 18px; accent-color: var(--ink); flex: none; }
+.seed-mint input { width: 18px; height: 18px; accent-color: var(--ink); flex: none; }
 .restore-results { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .restore-results li {
   display: flex; justify-content: space-between; gap: 10px; background: var(--paper); border: 2px solid var(--ink);

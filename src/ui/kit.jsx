@@ -4,7 +4,7 @@ import { classify } from '../lib/parse.js'
 
 const Scanner = lazy(() => import('./Scanner.jsx'))
 
-// Escáner a pantalla completa (se carga recién cuando hace falta)
+// Full-screen scanner (loaded only when needed)
 export function ScanOverlay({ open, onResult, onClose, hint }) {
   if (!open) return null
   return (
@@ -14,13 +14,13 @@ export function ScanOverlay({ open, onResult, onClose, hint }) {
   )
 }
 
-// Botón 📷 para llenar un campo leyendo un QR. `accept` filtra el tipo ('token' | 'invoice' | 'address', o una lista).
+// 📷 button that fills a field from a QR code. `accept` filters the kind ('token' | 'invoice' | 'address', or a list).
 export function ScanBtn({ onScan, accept, hint, onWrong }) {
   const [open, setOpen] = useState(false)
   return (
     <>
       <button type="button" className="btn ghost scan-btn" onClick={() => setOpen(true)}>
-        📷 Escanear
+        📷 Scan
       </button>
       <ScanOverlay
         open={open}
@@ -50,7 +50,7 @@ export function Sheet({ title, emoji, onClose, children }) {
           <h2>
             <span className="sheet-emoji">{emoji}</span> {title}
           </h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Cerrar">
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </header>
@@ -90,11 +90,11 @@ export function QR({ value, label }) {
       alive = false
     }
   }, [value])
-  if (err) return <div className="qr qr-too-big">Demasiado largo para un QR — usá el botón copiar 📋</div>
-  return <div className="qr">{src ? <img src={src} alt={label || 'Código QR'} /> : <div className="qr-loading" />}</div>
+  if (err) return <div className="qr qr-too-big">Too long for a QR code — use the copy button 📋</div>
+  return <div className="qr">{src ? <img src={src} alt={label || 'QR code'} /> : <div className="qr-loading" />}</div>
 }
 
-export function CopyBtn({ text, children = 'Copiar', className = 'btn' }) {
+export function CopyBtn({ text, children = 'Copy', className = 'btn' }) {
   const [ok, setOk] = useState(false)
   return (
     <button
@@ -105,11 +105,11 @@ export function CopyBtn({ text, children = 'Copiar', className = 'btn' }) {
           setOk(true)
           setTimeout(() => setOk(false), 1400)
         } catch {
-          /* sin permiso de portapapeles: el texto igual está visible para copiar a mano */
+          /* no clipboard permission: the text is still visible to copy by hand */
         }
       }}
     >
-      {ok ? '¡Copiado! ✓' : children}
+      {ok ? 'Copied! ✓' : children}
     </button>
   )
 }
@@ -132,12 +132,12 @@ export function AmountInput({ value, onChange, max }) {
       <div className="chips">
         {CHIPS.map((c) => (
           <button key={c} className="chip" onClick={() => onChange(String(c))} disabled={max != null && c > max}>
-            {c.toLocaleString('es-AR')}
+            {c.toLocaleString('en-US')}
           </button>
         ))}
         {max != null && max > 0 && (
           <button className="chip" onClick={() => onChange(String(max))}>
-            todo
+            max
           </button>
         )}
       </div>
@@ -145,7 +145,7 @@ export function AmountInput({ value, onChange, max }) {
   )
 }
 
-export const fmtSats = (n) => Number(n || 0).toLocaleString('es-AR')
+export const fmtSats = (n) => Number(n || 0).toLocaleString('en-US')
 export const shortUrl = (u) => {
   try {
     const x = new URL(u)
@@ -156,6 +156,6 @@ export const shortUrl = (u) => {
 }
 export const errMsg = (e) => {
   const m = e?.message || String(e)
-  if (/fetch|network|Failed to/i.test(m)) return 'No hay conexión con el mint. ¿Está bien la URL o tenés internet?'
+  if (/fetch|network|Failed to/i.test(m)) return "Can't reach the mint. Is the URL right, and are you online?"
   return m
 }
