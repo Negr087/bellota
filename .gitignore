@@ -3,3 +3,6 @@ dist
 dist-demo
 .DS_Store
 *.log
+
+# Windows Zone.Identifier (WSL)
+*:Zone.Identifier
