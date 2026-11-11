@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
-import { useWallet } from './lib/useWallet.js'
+import { useWallet, FORCE_DEMO } from './lib/useWallet.js'
 import { makeGiftToken } from './lib/demo.js'
 import { fmtSats, shortUrl, errMsg, ScanOverlay } from './ui/kit.jsx'
 import { classify } from './lib/parse.js'
@@ -8,6 +8,7 @@ import SendSheet from './ui/SendSheet.jsx'
 import MintsSheet from './ui/MintsSheet.jsx'
 import HistorySheet from './ui/HistorySheet.jsx'
 import SeedSheet from './ui/SeedSheet.jsx'
+import Onboarding, { onboardingDone } from './ui/Onboarding.jsx'
 
 const Scene = lazy(() => import('./three/Scene.jsx'))
 
@@ -79,6 +80,10 @@ export function AcornLogo({ size = 34 }) {
 export default function App() {
   const w = useWallet()
   const [sheet, setSheet] = useState(null)
+  // First visit: a short intro. Not for people arriving via a ?scan= link, nor for wallets already in use.
+  const [intro, setIntro] = useState(
+    () => !onboardingDone() && !new URLSearchParams(location.search).has('scan') && w.total === 0 && w.state.history.length === 0,
+  )
   const [stage, setStage] = useState('code') // code → physics → ready (or failed)
   // Never leave the loader up forever: if the GPU is very slow, show the app anyway.
   useEffect(() => {
@@ -236,7 +241,19 @@ export default function App() {
           } else toast("That QR isn't a Cashu token, an invoice or a Lightning Address", 'err')
         }}
       />
-      {sheet === 'mints' && <MintsSheet w={w} onClose={close} toast={toast} onSeed={() => setSheet('seed')} />}
+      {sheet === 'mints' && (
+        <MintsSheet
+          w={w}
+          onClose={close}
+          toast={toast}
+          onSeed={() => setSheet('seed')}
+          onIntro={() => {
+            close()
+            setIntro(true)
+          }}
+        />
+      )}
+      {intro && <Onboarding w={w} forceDemo={FORCE_DEMO} onClose={() => setIntro(false)} />}
       {sheet === 'seed' && <SeedSheet w={w} onClose={close} toast={toast} />}
       {sheet === 'history' && <HistorySheet w={w} onClose={close} toast={toast} />}
 

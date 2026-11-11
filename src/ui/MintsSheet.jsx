@@ -3,7 +3,7 @@ import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl, useInstall } from './kit.jsx
 import { SUGGESTED_MINTS, FORCE_DEMO } from '../lib/useWallet.js'
 import { sumOf } from '../lib/cashu.js'
 
-export default function MintsSheet({ w, onClose, toast, onSeed }) {
+export default function MintsSheet({ w, onClose, toast, onSeed, onIntro }) {
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -83,9 +83,12 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
         )}
         {err && <p className="error">{err}</p>}
 
+        <h3>App</h3>
+        <button className="btn ghost" onClick={onIntro}>
+          🌰 How it works
+        </button>
         {(app.canInstall || app.ios) && (
           <>
-            <h3>App</h3>
             {app.canInstall ? (
               <button className="btn primary" onClick={app.install}>
                 📲 Install Bellota

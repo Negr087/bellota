@@ -30,6 +30,7 @@ Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #Nut
 | 🔗 **Deep links** | `…/bellota/?scan=<token or invoice or address>` opens straight to claim or pay, and the app registers as a `web+cashu:` handler. |
 | 🏦 **Multi-mint** | Each mint is its own jar. Add, switch and remove mints. |
 | 🔐 **Token backup** | Also exports one token per mint with the whole balance. |
+| 👋 **First-run intro** | Three quick cards: what ecash is, an interactive splitter that turns any amount into its power-of-2 acorns (1,337 = 1,024 + 256 + 32 + 16 + 8 + 1), and a choice between the demo and real mints. Replay it from 🏦 → *How it works*. |
 | 🧸 **Demo mode** | An offline toy mint to try the experience without real sats. |
 
 ### The 3D jar

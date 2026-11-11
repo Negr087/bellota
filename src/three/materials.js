@@ -14,15 +14,8 @@ export function toonRamp() {
   return _ramp
 }
 
-// Colors by denomination (Cashu proofs are powers of 2)
-const TIERS = [
-  { max: 2, face: '#E08A4E', rim: '#B9622C', name: 'copper' },
-  { max: 16, face: '#F5A524', rim: '#C97D0B', name: 'amber' },
-  { max: 128, face: '#FFD23F', rim: '#D9A800', name: 'gold' },
-  { max: 2048, face: '#7BE0AD', rim: '#3FAF78', name: 'mint' },
-  { max: Infinity, face: '#B58CFF', rim: '#7E55D6', name: 'grape' },
-]
-export const tierOf = (amount) => TIERS.find((t) => amount <= t.max)
+import { tierOf } from '../lib/tiers.js'
+export { tierOf }
 
 // Coin radius by amount: more sats, bigger coin
 export const coinRadius = (amount) => Math.min(0.72, 0.27 + 0.04 * Math.log2(Math.max(1, amount)))
