@@ -4,6 +4,8 @@
 
 **Bellota** es una wallet web de [Cashu](https://cashu.space) (ecash para Bitcoin) donde cada *proof* es una moneda-bellota física en 3D. Recibís por Lightning y caen al frasco; mandás ecash y salen volando; pagás una invoice y se derriten en un rayo. Estética de dibujo animado (cel-shading + contornos de tinta) con una interfaz moderna estilo neo-brutalista.
 
+**▶ Probala: [negr087.github.io/bellota](https://negr087.github.io/bellota/)** · [modo demo sin red](https://negr087.github.io/bellota/?demo)
+
 Hecha para la hackathon **[Nut November 2026](https://nutnovember.org)** · #NutNovember
 
 ## Qué hace
@@ -15,6 +17,7 @@ Hecha para la hackathon **[Nut November 2026](https://nutnovember.org)** · #Nut
 | 🌰 → 🎁 **Enviar ecash** | Arma un token (con nota opcional) en texto + QR. Desde el historial podés ver si ya lo cobraron (NUT-07) y **recuperarlo** si no. |
 | 🌰 → ⚡ **Pagar Lightning** | Cotiza la invoice (NUT-05) mostrando monto + reserva de comisión, paga y guarda el vuelto (NUT-08). Si el pago falla, recupera las proofs que no se gastaron. |
 | 🏦 **Multi-mint** | Cada mint es un frasco distinto. Agregar, cambiar y quitar mints. |
+| ⏳ **Pagos a prueba de cierres** | Antes de pagar, las proofs se guardan como "en tránsito". Si cerrás la pestaña o el pago queda pendiente, al volver la app le pregunta al mint (NUT-05/07) y te devuelve lo que no se gastó. |
 | 🔐 **Respaldo** | Exporta un token por mint con todo el saldo. |
 | 🧸 **Modo demo** | Mint de juguete sin red, para probar la experiencia sin sats reales. |
 

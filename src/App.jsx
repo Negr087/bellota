@@ -110,6 +110,7 @@ export default function App() {
           {w.activeProofs.length} {w.activeProofs.length === 1 ? 'bellota' : 'bellotas'}
           {mintCount > 1 && ` · ${fmtSats(w.total)} sats en ${mintCount} mints`}
         </small>
+        {w.inTransit > 0 && <small className="sub">⏳ {fmtSats(w.inTransit)} sats en tránsito (pago Lightning sin confirmar)</small>}
       </section>
 
       {empty && (

@@ -107,8 +107,8 @@ function LightningOut({ w, onDone }) {
           disabled={busy || quote.amount + quote.fee > w.balance}
           onClick={() =>
             run(async () => {
-              await w.actions.payInvoice(quote)
-              onDone(`⚡ Pagaste ${fmtSats(quote.amount)} sats`)
+              const st = await w.actions.payInvoice(quote)
+              onDone(st === 'PENDING' ? '⏳ Pago en curso: te avisamos en el historial' : `⚡ Pagaste ${fmtSats(quote.amount)} sats`)
             })
           }
         >

@@ -107,11 +107,17 @@ export const demoBackend = {
     return { raw: { invoice }, amount, fee: Math.max(1, Math.ceil(amount * 0.01)) }
   },
 
-  async payInvoice(_mint, quote, proofs) {
-    await wait(1200)
-    const { keep } = select(quote.amount + quote.fee, proofs)
+  async payInvoice(_mint, quote, proofs, onReserve) {
+    await wait(300)
+    onReserve(select(quote.amount + quote.fee, proofs))
+    await wait(900)
     const change = makeProofs(Math.floor(quote.fee / 2)) // parte de la reserva vuelve
-    return { keep, change, preimage: rid() }
+    return { state: 'PAID', change, preimage: rid() }
+  },
+
+  // En la demo los pagos nunca quedan colgados
+  async checkMelt() {
+    return { state: 'PAID', unspent: [] }
   },
 
   encodeToken: (mint, proofs) => encode({ mint, proofs, nonce: rid() }),

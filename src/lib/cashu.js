@@ -93,21 +93,39 @@ export const realBackend = {
     return { raw: q, amount: amountOf(q.amount), fee: amountOf(q.fee_reserve) }
   },
 
-  async payInvoice(mintUrl, quote, proofs) {
+  // `onReserve({ keep, send })` se llama apenas el swap separa las proofs, ANTES del melt:
+  // el swap invalida las proofs viejas, así que hay que persistir keep/send ya mismo
+  // por si se cierra la pestaña mientras Lightning resuelve el pago.
+  // Devuelve { state: 'PAID' | 'PENDING', change }.
+  async payInvoice(mintUrl, quote, proofs, onReserve) {
     const w = await getWallet(mintUrl)
     const total = quote.raw.amount.add(quote.raw.fee_reserve)
     const { keep, send } = await w.send(total, proofs, { includeFees: true })
+    onReserve({ keep, send })
     try {
       const res = await w.meltProofsBolt11(quote.raw, send)
-      return { keep, change: res.change ?? [], preimage: res.quote?.payment_preimage ?? null }
+      const state = res.quote?.state ?? 'PAID'
+      if (state === 'UNPAID') throw new Error('El mint no pudo pagar la invoice')
+      return { state, change: res.change ?? [], preimage: res.quote?.payment_preimage ?? null }
     } catch (e) {
-      // El pago falló: si las proofs no se gastaron las volvemos a guardar.
-      const states = await w.checkProofsStates(send).catch(() => null)
-      const unspent = states ? send.filter((_, i) => states[i]?.state === 'UNSPENT') : send
+      // Si podemos confirmar que las proofs no se gastaron, el pago falló limpio.
+      const settled = await this.checkMelt(mintUrl, quote.raw.quote, send).catch(() => null)
       const err = new Error(e?.message || 'El pago falló')
-      err.recovered = [...keep, ...unspent]
+      if (settled?.state === 'UNPAID') err.recovered = settled.unspent
+      else err.unknown = true // estado incierto: queda "en tránsito" y se revisa en segundo plano
       throw err
     }
+  },
+
+  // Resuelve un pago que quedó en tránsito. Devuelve
+  // { state: 'PAID' | 'PENDING' | 'UNPAID', unspent } donde `unspent` son las proofs recuperables.
+  async checkMelt(mintUrl, quoteId, proofs) {
+    const w = await getWallet(mintUrl)
+    const [q, states] = await Promise.all([w.checkMeltQuoteBolt11(quoteId), w.checkProofsStates(proofs)])
+    const unspent = proofs.filter((_, i) => states[i]?.state === 'UNSPENT')
+    if (q.state === 'PAID') return { state: 'PAID', unspent: [] }
+    if (q.state === 'PENDING' || states.some((s) => s.state === 'PENDING')) return { state: 'PENDING', unspent: [] }
+    return { state: 'UNPAID', unspent }
   },
 
   encodeToken: (mint, proofs) => getEncodedToken({ mint, proofs, unit: 'sat' }),

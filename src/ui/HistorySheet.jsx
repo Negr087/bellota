@@ -88,6 +88,8 @@ export default function HistorySheet({ w, onClose, toast }) {
                   <small>
                     {when(h.ts)} · {shortUrl(h.mint)}
                     {h.fee ? ` · comisión ${fmtSats(h.fee)}` : ''}
+                    {h.pending ? ' · ⏳ esperando confirmación' : ''}
+                    {h.failed ? ' · ❌ falló, bellotas devueltas' : ''}
                   </small>
                   {h.memo && <small className="memo">“{h.memo}”</small>}
                   {h.type === 'ecash-out' && h.token && <SentToken w={w} h={h} toast={toast} />}
