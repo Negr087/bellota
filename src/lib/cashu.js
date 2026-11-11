@@ -8,6 +8,7 @@ import {
   serializeProofs,
   deserializeProofs,
 } from '@cashu/cashu-ts'
+import { seedStore, counterSource } from './seed.js'
 
 export const amountOf = (x) =>
   typeof x === 'object' && x !== null && 'toNumber' in x ? x.toNumber() : Number(x)
@@ -18,7 +19,9 @@ const wallets = new Map()
 
 async function getWallet(mintUrl) {
   if (!wallets.has(mintUrl)) {
-    const w = new Wallet(mintUrl) // unidad: sat
+    // Con semilla, todos los secretos son determinísticos (NUT-13) y se pueden recuperar.
+    const seed = seedStore.seedBytes()
+    const w = new Wallet(mintUrl, seed ? { bip39seed: seed, counterSource } : {}) // unidad: sat
     wallets.set(
       mintUrl,
       w.loadMint().then(() => w),
@@ -34,6 +37,46 @@ async function getWallet(mintUrl) {
 
 export const realBackend = {
   isDemo: false,
+
+  // 🌱 Semilla (NUT-13)
+  seed: {
+    words: () => seedStore.mnemonic()?.split(' ') ?? [],
+    backedUp: () => seedStore.backedUp(),
+    markBackedUp: () => seedStore.markBackedUp(),
+    legacy: () => seedStore.legacy(),
+    clearLegacy: () => seedStore.clearLegacy(),
+    ensure(hadBalance) {
+      if (seedStore.ensure(hadBalance)) wallets.clear()
+    },
+    replace(mnemonic, hadBalance) {
+      seedStore.replace(mnemonic, hadBalance)
+      wallets.clear() // las wallets cacheadas tienen la semilla vieja
+    },
+  },
+
+  // Recupera las proofs de la semilla en un mint: recorre cada keyset (activos e inactivos),
+  // pide al mint que vuelva a firmar los outputs derivados y se queda con las no gastadas.
+  async restore(mintUrl, onProgress) {
+    const w = await getWallet(mintUrl)
+    const keysets = w.keyChain.getKeysets()
+    const found = []
+    for (const [i, ks] of keysets.entries()) {
+      onProgress?.({ keyset: ks.id, i, n: keysets.length })
+      const { proofs, lastCounterWithSignature } = await w.batchRestore(300, undefined, 0, ks.id)
+      // Aunque estén gastadas, esos contadores ya se usaron: no los repetimos nunca.
+      if (lastCounterWithSignature != null) await counterSource.advanceToAtLeast(ks.id, lastCounterWithSignature + 1)
+      if (!proofs.length) continue
+      const states = await w.checkProofsStates(proofs)
+      found.push(...proofs.filter((_, j) => states[j]?.state === 'UNSPENT'))
+    }
+    return found
+  },
+
+  // Cambia proofs viejas (sin semilla) por proofs nuevas derivadas de la semilla.
+  async reissue(mintUrl, proofs) {
+    const w = await getWallet(mintUrl)
+    return w.receive(getEncodedToken({ mint: mintUrl, proofs, unit: 'sat' }))
+  },
 
   serialize: (proofs) => JSON.stringify(serializeProofs(proofs)),
   deserialize: (str) => deserializeProofs(str || '[]'),

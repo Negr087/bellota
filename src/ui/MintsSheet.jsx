@@ -3,7 +3,7 @@ import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl } from './kit.jsx'
 import { SUGGESTED_MINTS, FORCE_DEMO } from '../lib/useWallet.js'
 import { sumOf } from '../lib/cashu.js'
 
-export default function MintsSheet({ w, onClose, toast }) {
+export default function MintsSheet({ w, onClose, toast, onSeed }) {
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -97,8 +97,18 @@ export default function MintsSheet({ w, onClose, toast }) {
         )}
 
         <h3>Respaldo</h3>
+        {w.backend.seed && (
+          <>
+            <p className="hint">
+              Tus bellotas salen de una <b>semilla de 12 palabras</b> (NUT-13): con ellas recuperás el saldo si perdés este navegador.
+            </p>
+            <button className="btn primary" onClick={onSeed}>
+              🌱 Mis 12 palabras / Recuperar
+            </button>
+          </>
+        )}
         <p className="hint">
-          El ecash vive <b>solo en este navegador</b>. Si borrás los datos, se pierde. Exportá un token por mint y guardalo en un lugar seguro: con eso recuperás todo.
+          También podés exportar un token por mint con todo el saldo (sirve en cualquier wallet Cashu, pero es una foto del momento: no incluye lo que recibas después).
         </p>
         {!backup ? (
           <button className="btn ghost" onClick={() => setBackup(w.actions.exportBackup())}>

@@ -72,6 +72,8 @@ function load(mode) {
       proofs[url] = []
     }
   }
+  // Modo real: si todavía no hay semilla, la creamos ya (antes de construir cualquier wallet).
+  if (be.seed) be.seed.ensure(Object.values(proofs).some((ps) => ps.length))
   const active = store.get(p + 'active', mints[0]?.url)
   return { mints, proofs, history, pending, inflight, active: mints.some((m) => m.url === active) ? active : mints[0]?.url }
 }
@@ -100,6 +102,8 @@ export function useWallet() {
   const [state, setState] = useState(() => load(initialMode()))
   // "fx" le dice a la escena 3D cómo animar el próximo cambio de monedas
   const [fx, setFx] = useState({ kind: 'idle', n: 0 })
+  const [, setSeedRev] = useState(0) // re-render cuando cambia algo de la semilla
+  const seedChanged = () => setSeedRev((n) => n + 1)
   const ref = useRef(state)
   ref.current = state
   const backend = mode === 'demo' ? demoBackend : realBackend
@@ -297,6 +301,55 @@ export function useWallet() {
           .map((x) => ({ mint: x.mint, amount: sumOf(x.proofs), token: backend.encodeToken(x.mint, x.proofs) }))
       },
       shake: () => fire('shake'),
+
+      // 🌱 Semilla (NUT-13)
+      markBackedUp() {
+        backend.seed?.markBackedUp()
+        seedChanged()
+      },
+      // Recupera el saldo de una semilla en los mints indicados. Devuelve el resultado por mint.
+      async restoreFromSeed(mnemonic, urls, onProgress) {
+        const hadBalance = Object.values(ref.current.proofs).some((ps) => ps.length)
+        backend.seed.replace(mnemonic, hadBalance)
+        seedChanged()
+        const results = []
+        for (const raw of urls) {
+          let url = normUrl(raw)
+          try {
+            onProgress?.({ url, phase: 'connect' })
+            url = await ensureMint(url)
+            const found = await backend.restore(url, (p) => onProgress?.({ url, phase: 'scan', ...p }))
+            const have = new Set((ref.current.proofs[url] || []).map((p) => p.secret))
+            const fresh = found.filter((p) => !have.has(p.secret))
+            const amount = sumOf(fresh)
+            if (amount > 0) {
+              fire('pour')
+              commit((s) =>
+                addHistory(setProofs({ ...s, active: url }, url, [...(s.proofs[url] || []), ...fresh]), { type: 'restore', amount, mint: url }),
+              )
+            }
+            results.push({ url, amount })
+          } catch (e) {
+            results.push({ url, error: e?.message || String(e) })
+          }
+        }
+        seedChanged()
+        return results
+      },
+      // Pasa el saldo de antes de la semilla a proofs derivadas de ella (así la semilla lo cubre).
+      async migrateToSeed() {
+        let moved = 0
+        for (const [url, ps] of Object.entries(ref.current.proofs)) {
+          if (!ps.length) continue
+          const fresh = await backend.reissue(url, ps)
+          commit((s) => setProofs(s, url, fresh))
+          moved += sumOf(fresh)
+        }
+        backend.seed.clearLegacy()
+        seedChanged()
+        fire('shake')
+        return moved
+      },
     }),
     [backend, commit, ensureMint],
   )

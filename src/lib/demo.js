@@ -51,6 +51,7 @@ function invoiceSats(inv) {
 
 export const demoBackend = {
   isDemo: true,
+  seed: null, // la demo no tiene semilla: los sats son de juguete
   serialize: (proofs) => JSON.stringify(proofs),
   deserialize: (str) => JSON.parse(str || '[]'),
 

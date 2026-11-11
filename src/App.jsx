@@ -7,6 +7,7 @@ import ReceiveSheet from './ui/ReceiveSheet.jsx'
 import SendSheet from './ui/SendSheet.jsx'
 import MintsSheet from './ui/MintsSheet.jsx'
 import HistorySheet from './ui/HistorySheet.jsx'
+import SeedSheet from './ui/SeedSheet.jsx'
 
 const Scene = lazy(() => import('./three/Scene.jsx'))
 
@@ -147,6 +148,12 @@ export default function App() {
         </div>
       )}
 
+      {!empty && w.backend.seed && !w.backend.seed.backedUp() && (
+        <button className="seed-nag" onClick={() => setSheet('seed')}>
+          🌱 <span>Anotá tus 12 palabras para no perder tus sats</span> →
+        </button>
+      )}
+
       {!empty && <p className="poke-hint">tocá una bellota para ver cuánto vale · tocá el frasco para agitarlo</p>}
 
       <nav className="dock">
@@ -181,7 +188,8 @@ export default function App() {
           } else toast('Ese QR no es un token Cashu ni una invoice Lightning', 'err')
         }}
       />
-      {sheet === 'mints' && <MintsSheet w={w} onClose={close} toast={toast} />}
+      {sheet === 'mints' && <MintsSheet w={w} onClose={close} toast={toast} onSeed={() => setSheet('seed')} />}
+      {sheet === 'seed' && <SeedSheet w={w} onClose={close} toast={toast} />}
       {sheet === 'history' && <HistorySheet w={w} onClose={close} toast={toast} />}
 
       <div className="toasts" aria-live="polite">

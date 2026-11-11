@@ -4,6 +4,7 @@ import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl } from './kit.jsx'
 const META = {
   'ln-in': { icon: '⚡', label: 'Recibiste por Lightning', sign: '+' },
   'ecash-in': { icon: '🌰', label: 'Cobraste ecash', sign: '+' },
+  restore: { icon: '🌱', label: 'Recuperado con la semilla', sign: '+' },
   'ecash-out': { icon: '🎁', label: 'Enviaste ecash', sign: '−' },
   'ln-out': { icon: '⚡', label: 'Pagaste por Lightning', sign: '−' },
 }

@@ -19,7 +19,8 @@ Hecha para la hackathon **[Nut November 2026](https://nutnovember.org)** · #Nut
 | 📷 **Escanear QR** | Un botón en el dock lee cualquier QR y te lleva a donde corresponde: token Cashu → cobrar, invoice Lightning (o `bitcoin:` unificado con `lightning=`) → pagar. Funciona en iOS y Android; con linterna si el teléfono tiene. |
 | 🏦 **Multi-mint** | Cada mint es un frasco distinto. Agregar, cambiar y quitar mints. |
 | ⏳ **Pagos a prueba de cierres** | Antes de pagar, las proofs se guardan como "en tránsito". Si cerrás la pestaña o el pago queda pendiente, al volver la app le pregunta al mint (NUT-05/07) y te devuelve lo que no se gastó. |
-| 🔐 **Respaldo** | Exporta un token por mint con todo el saldo. |
+| 🌱 **Semilla de 12 palabras (NUT-13)** | Cada proof se deriva de una semilla BIP-39, así que con las 12 palabras recuperás el saldo en otro navegador (o en cashu.me, Minibits…). El restore recorre todos los keysets de cada mint (NUT-09) y se queda con lo no gastado (NUT-07). Los contadores se guardan *antes* de cada operación para que nunca se repitan. |
+| 🔐 **Respaldo extra** | También exporta un token por mint con todo el saldo. |
 | 🧸 **Modo demo** | Mint de juguete sin red, para probar la experiencia sin sats reales. |
 
 ### El frasco 3D
@@ -56,6 +57,7 @@ src/
   lib/cashu.js       backend real (cashu-ts): mint, melt, send, receive, estados
   lib/demo.js        mismo contrato, pero con un mint de juguete en memoria
   lib/useWallet.js   estado, persistencia (localStorage) y acciones
+  lib/seed.js        semilla BIP-39 y contadores NUT-13 persistentes
   lib/parse.js       reconoce tokens, invoices y URIs bitcoin:/lightning:/cashu:
   three/             frasco, monedas, física, materiales toon y contornos
   ui/                sheets de recibir / enviar / mints / historial
@@ -65,12 +67,11 @@ src/
 
 - Es software experimental de hackathon: **usá montos chicos**.
 - El ecash vive en el `localStorage` del navegador. Si borrás los datos del sitio sin haber exportado un respaldo, se pierde.
-- Todavía no usa semilla determinística (NUT-13): el respaldo es por tokens.
+- La semilla y las proofs se guardan sin cifrar en el navegador: cualquiera con acceso a tu navegador puede verlas.
 - Cashu es custodial: el mint guarda los sats. Elegí mints en los que confíes.
 
 ## Próximos pasos
 
-- Semilla BIP-39 + restore (NUT-13)
 - Guardar las proofs cifradas en Nostr (NIP-60) y recibir nutzaps (NIP-61)
 - Pagar Lightning Addresses y payment requests (NUT-18)
 
