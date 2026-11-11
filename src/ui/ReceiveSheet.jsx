@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { AmountInput, CopyBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats, shortUrl } from './kit.jsx'
 import { makeGiftToken } from '../lib/demo.js'
+import { classify } from '../lib/parse.js'
+
+// tiny helper kept here so the image reader itself can stay lazy-loaded
+const imageFrom = (dt) => [...(dt?.files || [])].find((f) => /^image\//.test(f.type))
 
 function LightningIn({ w, onDone }) {
   const [amount, setAmount] = useState('')
@@ -100,17 +104,59 @@ function EcashIn({ w, onDone, initial = '' }) {
     }
   }
   const known = info && w.state.mints.some((m) => m.url === info.mint.replace(/\/+$/, ''))
+  const fromEmoji = info && classify(token).emoji
+  const [dragging, setDragging] = useState(false)
+
+  // GIF / image → token (hidden GIF comment first, then the QR code in the picture)
+  const fromImage = async (file) => {
+    setErr('')
+    setBusy(true)
+    try {
+      const { readImage } = await import('../lib/imageToken.js')
+      const r = await readImage(file)
+      if (r.kind !== 'token') throw new Error(r.kind === 'invoice' ? 'That image has a Lightning invoice: to pay it, go to Send → Pay Lightning.' : "That image doesn't contain a Cashu token.")
+      setToken(r.value)
+    } catch (e) {
+      setErr(errMsg(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="stack">
-      <p className="hint">Paste a Cashu token (starts with <code>cashuA</code> or <code>cashuB</code>) to put it in the jar.</p>
+      <p className="hint">
+        Paste a Cashu token (<code>cashuA…</code>/<code>cashuB…</code>) or an emoji with a token inside 🥜, or open a token GIF or screenshot.
+      </p>
       <textarea
-        className="token-area"
-        placeholder="cashuB…"
+        className={`token-area${dragging ? ' dragging' : ''}`}
+        placeholder="cashuB…  or  🥜  or drop a GIF here"
         value={token}
         onChange={(e) => setToken(e.target.value)}
+        onPaste={(e) => {
+          const img = imageFrom(e.clipboardData)
+          if (img) {
+            e.preventDefault()
+            fromImage(img)
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          setDragging(false)
+          const img = imageFrom(e.dataTransfer)
+          if (img) {
+            e.preventDefault()
+            fromImage(img)
+          }
+        }}
         spellCheck={false}
         rows={4}
       />
+      {fromEmoji && <p className="muted">🥜 Found a token hidden in the emoji.</p>}
       <ScanBtn
         accept="token"
         hint="Point at the Cashu token QR"
@@ -120,6 +166,19 @@ function EcashIn({ w, onDone, initial = '' }) {
         }}
         onWrong={(r) => setErr(r.kind === 'invoice' ? 'That is a Lightning invoice: to pay it, go to Send → Pay Lightning.' : "That QR isn't a Cashu token.")}
       />
+      <label className="btn ghost scan-btn file-btn">
+        🖼️ Open GIF / image
+        <input
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) fromImage(f)
+          }}
+        />
+      </label>
       {w.backend.isDemo && !token && (
         <button className="btn ghost" onClick={() => setToken(makeGiftToken(21 * Math.ceil(Math.random() * 30)))}>
           🎁 Generate a gift token (demo)

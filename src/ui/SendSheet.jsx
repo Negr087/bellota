@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { AmountInput, CopyBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats } from './kit.jsx'
+import { AmountInput, ScanBtn, Sheet, Tabs, errMsg, fmtSats } from './kit.jsx'
 import { classify } from '../lib/parse.js'
+import ShareToken from './ShareToken.jsx'
 
 function EcashOut({ w, toast }) {
   const [amount, setAmount] = useState('')
@@ -10,31 +11,11 @@ function EcashOut({ w, toast }) {
   const [err, setErr] = useState('')
   const n = Number(amount)
 
-  if (token)
-    return (
-      <div className="stack center">
-        <QR value={token} label="Cashu token" />
-        <p className="big-amount">{fmtSats(n)} sats</p>
-        <p className="hint center">
-          Send this token to anyone (chat, email, Nostr, a scrap of paper…). They can claim it with any Cashu wallet. If nobody claims it, you can reclaim it from your history.
-        </p>
-        <div className="row">
-          <CopyBtn text={token} className="btn primary">
-            Copy token 📋
-          </CopyBtn>
-          {navigator.share && (
-            <button className="btn ghost" onClick={() => navigator.share({ text: token }).catch(() => {})}>
-              Share
-            </button>
-          )}
-        </div>
-        <code className="mono-clip">{token}</code>
-      </div>
-    )
+  if (token) return <ShareToken token={token} amount={n} memo={memo.trim() || undefined} />
 
   return (
     <div className="stack">
-      <p className="hint">Take acorns out of the jar and turn them into a token you can send as text or a QR code.</p>
+      <p className="hint">Take acorns out of the jar and turn them into a token you can send as text, a QR code, an emoji or a GIF.</p>
       <AmountInput value={amount} onChange={setAmount} max={w.balance} />
       <input className="text-in" placeholder="Note (optional)" value={memo} maxLength={80} onChange={(e) => setMemo(e.target.value)} />
       {err && <p className="error">{err}</p>}

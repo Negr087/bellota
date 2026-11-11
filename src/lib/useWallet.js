@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { realBackend, amountOf, sumOf } from './cashu.js'
 import { demoBackend, DEMO_MINT } from './demo.js'
 import { resolvePayTarget, requestInvoice } from './lnurl.js'
+import { classify } from './parse.js'
 
 /* global __FORCE_DEMO__ */
 export const FORCE_DEMO = typeof __FORCE_DEMO__ !== 'undefined' && __FORCE_DEMO__
@@ -90,6 +91,12 @@ function save(mode, s) {
   store.set(p + 'pending', JSON.stringify(s.pending))
   store.set(p + 'inflight', JSON.stringify(s.inflight.map((f) => ({ ...f, proofs: be.serialize(f.proofs) }))))
   store.set(p + 'active', s.active || '')
+}
+
+// Accepts a plain token, a cashu: URI or a token hidden in an emoji, and returns the bare token.
+const unwrapToken = (t) => {
+  const r = classify(t)
+  return r.kind === 'token' ? r.value : String(t || '').trim()
 }
 
 const normUrl = (u) => u.trim().replace(/\/+$/, '')
@@ -194,8 +201,9 @@ export function useWallet() {
       cancelInvoice: (quote) => commit((s) => ({ ...s, pending: s.pending.filter((p) => p.quote !== quote) })),
 
       // token → 🌰
-      tokenInfo: (t) => backend.tokenInfo(t),
-      async receiveToken(token) {
+      tokenInfo: (t) => backend.tokenInfo(unwrapToken(t)),
+      async receiveToken(raw) {
+        const token = unwrapToken(raw)
         const info = backend.tokenInfo(token)
         const mint = await ensureMint(info.mint)
         const { proofs } = await backend.receiveToken(token)

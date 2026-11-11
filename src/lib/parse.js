@@ -3,9 +3,15 @@
 //   { kind: 'invoice', value }  bolt11 Lightning invoice
 //   { kind: 'address', value }  Lightning Address (user@domain) or LNURL-pay (lnurl1…)
 //   { kind: 'unknown', value }
+// A token hidden in an emoji (🥜 + invisible selectors) is unwrapped first: { kind: 'token', value, emoji: true }.
 import { isLightningAddress, isLnurl } from './lnurl.js'
+import { decodeEmoji, hasHiddenData } from './emoji.js'
 
 export function classify(raw) {
+  if (hasHiddenData(raw)) {
+    const hidden = decodeEmoji(raw)
+    if (hidden && !hasHiddenData(hidden)) return { ...classify(hidden), emoji: true }
+  }
   let s = String(raw || '').trim()
   // URI schemes: cashu:, lightning:, web+cashu:
   s = s.replace(/^(web\+)?cashu:(\/\/)?/i, '').replace(/^lightning:(\/\/)?/i, '')

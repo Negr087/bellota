@@ -21,6 +21,7 @@ Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #Nut
 | ⚡ → 🌰 **Receive over Lightning** | Creates an invoice (NUT-04), waits for payment and mints the acorns. Pending invoices keep being checked even if you close the app. |
 | 🌰 **Claim ecash** | Paste a `cashuA…`/`cashuB…` token to see the amount, mint and memo before claiming. Unknown mints are flagged and added. |
 | 🌰 → 🎁 **Send ecash** | Builds a token (with an optional note) as text + QR. From your history you can check whether it was claimed (NUT-07) and **reclaim** it if not. |
+| 🥜 **Send as emoji or GIF** | Share a token hidden **inside an emoji** (🥜 + invisible Unicode variation selectors, the same scheme as cashu.me, so they interoperate both ways) or as an **animated GIF**. The GIF carries the token twice: as a QR code that survives chat-app recompression and any wallet can scan, and verbatim in a GIF comment block for lossless import. Bellota claims tokens from a pasted emoji, or from a GIF, screenshot or photo you open, paste or drop. Hidden, not encrypted. |
 | 🌰 → ⚡ **Pay Lightning** | Quotes the invoice (NUT-05) showing amount + fee reserve, pays, and keeps the change (NUT-08). |
 | 📧 **Lightning Address & LNURL** | Pay `user@domain` (LUD-16) or an `lnurl1…` QR (LUD-01/06): shows what the recipient accepts, supports comments (LUD-12) and **checks the invoice is for the exact amount** before paying. |
 | 📷 **QR scanner** | A dock button reads any QR and routes it: Cashu token → claim; invoice, Lightning Address, LNURL or unified `bitcoin:…?lightning=` → pay. Works on iOS and Android, with a torch toggle when available. |
@@ -63,6 +64,7 @@ Every push to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml`.
 - [`@cashu/cashu-ts`](https://github.com/cashubtc/cashu-ts) v4
 - [`@scure/bip39`](https://github.com/paulmillr/scure-bip39) for the seed words
 - [`qr-scanner`](https://github.com/nimiq/qr-scanner) (only loaded when the camera opens)
+- [`gifenc`](https://github.com/mattdesl/gifenc) for the token GIFs (only loaded when you make one)
 - three.js + @react-three/fiber + drei + @react-three/rapier
 - Fredoka + Space Grotesk (bundled, no CDNs)
 
@@ -73,6 +75,9 @@ src/
   lib/useWallet.js   state, persistence (localStorage) and actions
   lib/seed.js        BIP-39 seed and persistent NUT-13 counters
   lib/lnurl.js       Lightning Address / LNURL-pay (bech32 included)
+  lib/emoji.js       tokens hidden in an emoji (variation selectors)
+  lib/gif.js         token → animated GIF with QR + comment block (lazy-loaded)
+  lib/imageToken.js  reads a token from a GIF comment or the QR in any image
   lib/parse.js       recognizes tokens, invoices, addresses and bitcoin:/lightning:/cashu: URIs
   three/             jar, coins, physics, toon materials and outlines
   ui/                receive / send / mints / history / seed sheets, QR scanner
