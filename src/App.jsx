@@ -1,7 +1,8 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useWallet } from './lib/useWallet.js'
 import { makeGiftToken } from './lib/demo.js'
-import { fmtSats, shortUrl, errMsg } from './ui/kit.jsx'
+import { fmtSats, shortUrl, errMsg, ScanOverlay } from './ui/kit.jsx'
+import { classify } from './lib/parse.js'
 import ReceiveSheet from './ui/ReceiveSheet.jsx'
 import SendSheet from './ui/SendSheet.jsx'
 import MintsSheet from './ui/MintsSheet.jsx'
@@ -55,6 +56,8 @@ export function AcornLogo({ size = 34 }) {
 export default function App() {
   const w = useWallet()
   const [sheet, setSheet] = useState(null)
+  const [scanning, setScanning] = useState(false)
+  const [scanned, setScanned] = useState(null) // lo último que leyó el escáner del dock
   const [toasts, setToasts] = useState([])
   const shown = useCountUp(w.balance)
   const activeMint = w.state.mints.find((m) => m.url === w.state.active)
@@ -65,7 +68,10 @@ export default function App() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200)
   }, [])
 
-  const close = useCallback(() => setSheet(null), [])
+  const close = useCallback(() => {
+    setSheet(null)
+    setScanned(null)
+  }, [])
   const empty = w.activeProofs.length === 0
   const mintCount = Object.values(w.state.proofs).filter((p) => p.length).length
 
@@ -150,13 +156,31 @@ export default function App() {
         <button className="dock-btn shake" onClick={w.actions.shake} aria-label="Agitar el frasco" title="Agitar">
           🫨
         </button>
+        <button className="dock-btn shake scan" onClick={() => setScanning(true)} aria-label="Escanear QR" title="Escanear">
+          📷
+        </button>
         <button className="dock-btn out" onClick={() => setSheet('send')} disabled={empty}>
           Enviar <span className="dock-ico">↑</span>
         </button>
       </nav>
 
-      {sheet === 'receive' && <ReceiveSheet w={w} onClose={close} toast={toast} />}
-      {sheet === 'send' && <SendSheet w={w} onClose={close} toast={toast} />}
+      {sheet === 'receive' && <ReceiveSheet w={w} onClose={close} toast={toast} initialToken={scanned?.kind === 'token' ? scanned.value : undefined} />}
+      {sheet === 'send' && <SendSheet w={w} onClose={close} toast={toast} initialInvoice={scanned?.kind === 'invoice' ? scanned.value : undefined} />}
+      <ScanOverlay
+        open={scanning}
+        onClose={() => setScanning(false)}
+        onResult={(raw) => {
+          setScanning(false)
+          const r = classify(raw)
+          if (r.kind === 'token') {
+            setScanned(r)
+            setSheet('receive')
+          } else if (r.kind === 'invoice') {
+            setScanned(r)
+            setSheet('send')
+          } else toast('Ese QR no es un token Cashu ni una invoice Lightning', 'err')
+        }}
+      />
       {sheet === 'mints' && <MintsSheet w={w} onClose={close} toast={toast} />}
       {sheet === 'history' && <HistorySheet w={w} onClose={close} toast={toast} />}
 

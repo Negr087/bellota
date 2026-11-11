@@ -16,6 +16,7 @@ Hecha para la hackathon **[Nut November 2026](https://nutnovember.org)** · #Nut
 | 🌰 **Cobrar ecash** | Pegás un token `cashuA…`/`cashuB…`, muestra monto, mint y nota antes de cobrar. Si el mint es nuevo te avisa y lo agrega. |
 | 🌰 → 🎁 **Enviar ecash** | Arma un token (con nota opcional) en texto + QR. Desde el historial podés ver si ya lo cobraron (NUT-07) y **recuperarlo** si no. |
 | 🌰 → ⚡ **Pagar Lightning** | Cotiza la invoice (NUT-05) mostrando monto + reserva de comisión, paga y guarda el vuelto (NUT-08). Si el pago falla, recupera las proofs que no se gastaron. |
+| 📷 **Escanear QR** | Un botón en el dock lee cualquier QR y te lleva a donde corresponde: token Cashu → cobrar, invoice Lightning (o `bitcoin:` unificado con `lightning=`) → pagar. Funciona en iOS y Android; con linterna si el teléfono tiene. |
 | 🏦 **Multi-mint** | Cada mint es un frasco distinto. Agregar, cambiar y quitar mints. |
 | ⏳ **Pagos a prueba de cierres** | Antes de pagar, las proofs se guardan como "en tránsito". Si cerrás la pestaña o el pago queda pendiente, al volver la app le pregunta al mint (NUT-05/07) y te devuelve lo que no se gastó. |
 | 🔐 **Respaldo** | Exporta un token por mint con todo el saldo. |
@@ -46,6 +47,7 @@ Por defecto usa **testnut.cashu.space**, un mint de prueba con sats falsos donde
 
 - React 18 + Vite (JavaScript plano)
 - [`@cashu/cashu-ts`](https://github.com/cashubtc/cashu-ts) v4
+- [`qr-scanner`](https://github.com/nimiq/qr-scanner) (se carga solo al abrir la cámara)
 - three.js + @react-three/fiber + drei + @react-three/rapier
 - Fredoka + Space Grotesk (empaquetadas, sin CDNs)
 
@@ -54,6 +56,7 @@ src/
   lib/cashu.js       backend real (cashu-ts): mint, melt, send, receive, estados
   lib/demo.js        mismo contrato, pero con un mint de juguete en memoria
   lib/useWallet.js   estado, persistencia (localStorage) y acciones
+  lib/parse.js       reconoce tokens, invoices y URIs bitcoin:/lightning:/cashu:
   three/             frasco, monedas, física, materiales toon y contornos
   ui/                sheets de recibir / enviar / mints / historial
 ```
@@ -69,7 +72,6 @@ src/
 
 - Semilla BIP-39 + restore (NUT-13)
 - Guardar las proofs cifradas en Nostr (NIP-60) y recibir nutzaps (NIP-61)
-- Escanear QR con la cámara
 - Pagar Lightning Addresses y payment requests (NUT-18)
 
 ## Licencia

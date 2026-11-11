@@ -1,5 +1,41 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import QRCode from 'qrcode'
+import { classify } from '../lib/parse.js'
+
+const Scanner = lazy(() => import('./Scanner.jsx'))
+
+// Escáner a pantalla completa (se carga recién cuando hace falta)
+export function ScanOverlay({ open, onResult, onClose, hint }) {
+  if (!open) return null
+  return (
+    <Suspense fallback={<div className="scanner" />}>
+      <Scanner onResult={onResult} onClose={onClose} hint={hint} />
+    </Suspense>
+  )
+}
+
+// Botón 📷 para llenar un campo leyendo un QR. `accept` filtra el tipo ('token' | 'invoice').
+export function ScanBtn({ onScan, accept, hint, onWrong }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" className="btn ghost scan-btn" onClick={() => setOpen(true)}>
+        📷 Escanear
+      </button>
+      <ScanOverlay
+        open={open}
+        hint={hint}
+        onClose={() => setOpen(false)}
+        onResult={(raw) => {
+          setOpen(false)
+          const r = classify(raw)
+          if (accept && r.kind !== accept) onWrong?.(r)
+          else onScan(r.value)
+        }}
+      />
+    </>
+  )
+}
 
 export function Sheet({ title, emoji, onClose, children }) {
   useEffect(() => {

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AmountInput, CopyBtn, QR, Sheet, Tabs, errMsg, fmtSats } from './kit.jsx'
+import { useEffect, useState } from 'react'
+import { AmountInput, CopyBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats } from './kit.jsx'
 
 function EcashOut({ w, toast }) {
   const [amount, setAmount] = useState('')
@@ -59,8 +59,8 @@ function EcashOut({ w, toast }) {
   )
 }
 
-function LightningOut({ w, onDone }) {
-  const [invoice, setInvoice] = useState('')
+function LightningOut({ w, onDone, initial = '' }) {
+  const [invoice, setInvoice] = useState(initial)
   const [quote, setQuote] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -75,6 +75,11 @@ function LightningOut({ w, onDone }) {
       setBusy(false)
     }
   }
+  // Si venimos del escáner con una invoice, cotizamos de una
+  useEffect(() => {
+    if (initial) run(async () => setQuote(await w.actions.meltQuote(initial)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   return (
     <div className="stack">
       <p className="hint">Pegá una invoice Lightning: el mint la paga y se derriten las bellotas necesarias.</p>
@@ -89,6 +94,18 @@ function LightningOut({ w, onDone }) {
           setQuote(null)
         }}
       />
+      {!quote && (
+        <ScanBtn
+          accept="invoice"
+          hint="Apuntá al QR de la invoice Lightning"
+          onScan={(v) => {
+            setErr('')
+            setInvoice(v)
+            run(async () => setQuote(await w.actions.meltQuote(v)))
+          }}
+          onWrong={(r) => setErr(r.kind === 'token' ? 'Eso es un token Cashu: para cobrarlo andá a Recibir → Ecash.' : 'Ese QR no es una invoice Lightning.')}
+        />
+      )}
       {quote && (
         <div className="token-card">
           <div className="big-amount">{fmtSats(quote.amount)} sats</div>
@@ -119,8 +136,8 @@ function LightningOut({ w, onDone }) {
   )
 }
 
-export default function SendSheet({ w, onClose, toast }) {
-  const [tab, setTab] = useState('ecash')
+export default function SendSheet({ w, onClose, toast, initialInvoice }) {
+  const [tab, setTab] = useState(initialInvoice ? 'ln' : 'ecash')
   return (
     <Sheet title="Enviar" emoji="📤" onClose={onClose}>
       <Tabs
@@ -136,6 +153,7 @@ export default function SendSheet({ w, onClose, toast }) {
       ) : (
         <LightningOut
           w={w}
+          initial={initialInvoice}
           onDone={(m) => {
             toast(m)
             onClose()

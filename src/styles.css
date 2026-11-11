@@ -261,3 +261,35 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 @keyframes up { from { transform: translateY(100%); } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pulse { 50% { transform: scale(1.35); } }
+
+/* ---------- escáner QR ---------- */
+.dock-btn.scan { background: var(--paper); }
+@media (max-width: 380px) {
+  .dock { gap: 7px; }
+  .dock-btn { font-size: 1.1rem; gap: 5px; }
+  .dock-btn.shake { width: 54px; font-size: 1.35rem; }
+  .dock-ico { display: none; }
+}
+.scan-btn { align-self: flex-start; }
+.scanner {
+  position: fixed; inset: 0; z-index: 50; background: #000; display: grid; place-items: center;
+  animation: fade .2s both;
+}
+.scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scan-frame {
+  position: relative; width: min(72vw, 320px); aspect-ratio: 1; border: 4px solid var(--amber); border-radius: 28px;
+  box-shadow: 0 0 0 100vmax rgba(43, 29, 20, .55);
+}
+.scan-top {
+  position: absolute; top: max(16px, env(safe-area-inset-top)); left: 16px; right: 16px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.scan-hint {
+  background: var(--paper); border: var(--b); border-radius: 99px; padding: 8px 14px; font-weight: 600;
+  font-size: .9rem; box-shadow: var(--shadow-s); color: var(--ink);
+}
+.scan-err {
+  position: absolute; left: 16px; right: 16px; top: 50%; transform: translateY(-50%); margin: 0;
+  background: var(--paper); border: var(--b); border-radius: var(--r); box-shadow: var(--shadow); padding: 16px; text-align: center; color: var(--ink);
+}
+.scan-torch { position: absolute; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); }

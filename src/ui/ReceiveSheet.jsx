@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AmountInput, CopyBtn, QR, Sheet, Tabs, errMsg, fmtSats, shortUrl } from './kit.jsx'
+import { AmountInput, CopyBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats, shortUrl } from './kit.jsx'
 import { makeGiftToken } from '../lib/demo.js'
 
 function LightningIn({ w, onDone }) {
@@ -86,8 +86,8 @@ function LightningIn({ w, onDone }) {
   )
 }
 
-function EcashIn({ w, onDone }) {
-  const [token, setToken] = useState('')
+function EcashIn({ w, onDone, initial = '' }) {
+  const [token, setToken] = useState(initial)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   let info = null
@@ -110,6 +110,15 @@ function EcashIn({ w, onDone }) {
         onChange={(e) => setToken(e.target.value)}
         spellCheck={false}
         rows={4}
+      />
+      <ScanBtn
+        accept="token"
+        hint="Apuntá al QR del token Cashu"
+        onScan={(v) => {
+          setErr('')
+          setToken(v)
+        }}
+        onWrong={(r) => setErr(r.kind === 'invoice' ? 'Eso es una invoice Lightning: para pagarla andá a Enviar → Pagar Lightning.' : 'Ese QR no es un token Cashu.')}
       />
       {w.backend.isDemo && !token && (
         <button className="btn ghost" onClick={() => setToken(makeGiftToken(21 * Math.ceil(Math.random() * 30)))}>
@@ -148,8 +157,8 @@ function EcashIn({ w, onDone }) {
   )
 }
 
-export default function ReceiveSheet({ w, onClose, toast }) {
-  const [tab, setTab] = useState('ln')
+export default function ReceiveSheet({ w, onClose, toast, initialToken }) {
+  const [tab, setTab] = useState(initialToken ? 'ecash' : 'ln')
   const done = (msg) => {
     toast(msg)
     onClose()
@@ -164,7 +173,7 @@ export default function ReceiveSheet({ w, onClose, toast }) {
           { value: 'ecash', label: '🌰 Ecash' },
         ]}
       />
-      {tab === 'ln' ? <LightningIn w={w} onDone={done} /> : <EcashIn w={w} onDone={done} />}
+      {tab === 'ln' ? <LightningIn w={w} onDone={done} /> : <EcashIn w={w} onDone={done} initial={initialToken} />}
     </Sheet>
   )
 }
