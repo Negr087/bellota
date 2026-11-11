@@ -172,7 +172,7 @@ export default function App() {
       </nav>
 
       {sheet === 'receive' && <ReceiveSheet w={w} onClose={close} toast={toast} initialToken={scanned?.kind === 'token' ? scanned.value : undefined} />}
-      {sheet === 'send' && <SendSheet w={w} onClose={close} toast={toast} initialInvoice={scanned?.kind === 'invoice' ? scanned.value : undefined} />}
+      {sheet === 'send' && <SendSheet w={w} onClose={close} toast={toast} initialInvoice={scanned?.kind === 'invoice' || scanned?.kind === 'address' ? scanned.value : undefined} />}
       <ScanOverlay
         open={scanning}
         onClose={() => setScanning(false)}
@@ -182,10 +182,10 @@ export default function App() {
           if (r.kind === 'token') {
             setScanned(r)
             setSheet('receive')
-          } else if (r.kind === 'invoice') {
+          } else if (r.kind === 'invoice' || r.kind === 'address') {
             setScanned(r)
             setSheet('send')
-          } else toast('Ese QR no es un token Cashu ni una invoice Lightning', 'err')
+          } else toast('Ese QR no es un token Cashu, una invoice ni una Lightning Address', 'err')
         }}
       />
       {sheet === 'mints' && <MintsSheet w={w} onClose={close} toast={toast} onSeed={() => setSheet('seed')} />}

@@ -1,7 +1,10 @@
 // Entiende lo que sale de un QR o del portapapeles y dice qué es.
 //   { kind: 'token', value }    token Cashu (cashuA…, cashuB…, cashuDemo…)
 //   { kind: 'invoice', value }  invoice Lightning bolt11
+//   { kind: 'address', value }  Lightning Address (usuario@dominio) o LNURL-pay (lnurl1…)
 //   { kind: 'unknown', value }
+import { isLightningAddress, isLnurl } from './lnurl.js'
+
 export function classify(raw) {
   let s = String(raw || '').trim()
   // Esquemas URI: cashu:, lightning:, web+cashu:
@@ -15,6 +18,8 @@ export function classify(raw) {
     return { kind: 'unknown', value: s }
   }
 
+  if (isLnurl(s)) return { kind: 'address', value: s.toLowerCase() }
+  if (isLightningAddress(s)) return { kind: 'address', value: s.toLowerCase() }
   if (/^cashu[A-Za-z]/.test(s)) return { kind: 'token', value: s }
   // (laxo a propósito: el mint valida la invoice de verdad, y las de la demo no son bech32)
   if (/^ln(bc|tb|bcrt|tbs)[0-9a-z]+$/i.test(s)) return { kind: 'invoice', value: s.toLowerCase() }

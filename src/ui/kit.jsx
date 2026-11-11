@@ -14,7 +14,7 @@ export function ScanOverlay({ open, onResult, onClose, hint }) {
   )
 }
 
-// Botón 📷 para llenar un campo leyendo un QR. `accept` filtra el tipo ('token' | 'invoice').
+// Botón 📷 para llenar un campo leyendo un QR. `accept` filtra el tipo ('token' | 'invoice' | 'address', o una lista).
 export function ScanBtn({ onScan, accept, hint, onWrong }) {
   const [open, setOpen] = useState(false)
   return (
@@ -29,7 +29,7 @@ export function ScanBtn({ onScan, accept, hint, onWrong }) {
         onResult={(raw) => {
           setOpen(false)
           const r = classify(raw)
-          if (accept && r.kind !== accept) onWrong?.(r)
+          if (accept && ![].concat(accept).includes(r.kind)) onWrong?.(r)
           else onScan(r.value)
         }}
       />

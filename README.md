@@ -16,8 +16,9 @@ Hecha para la hackathon **[Nut November 2026](https://nutnovember.org)** · #Nut
 | 🌰 **Cobrar ecash** | Pegás un token `cashuA…`/`cashuB…`, muestra monto, mint y nota antes de cobrar. Si el mint es nuevo te avisa y lo agrega. |
 | 🌰 → 🎁 **Enviar ecash** | Arma un token (con nota opcional) en texto + QR. Desde el historial podés ver si ya lo cobraron (NUT-07) y **recuperarlo** si no. |
 | 🌰 → ⚡ **Pagar Lightning** | Cotiza la invoice (NUT-05) mostrando monto + reserva de comisión, paga y guarda el vuelto (NUT-08). Si el pago falla, recupera las proofs que no se gastaron. |
-| 📷 **Escanear QR** | Un botón en el dock lee cualquier QR y te lleva a donde corresponde: token Cashu → cobrar, invoice Lightning (o `bitcoin:` unificado con `lightning=`) → pagar. Funciona en iOS y Android; con linterna si el teléfono tiene. |
+| 📷 **Escanear QR** | Un botón en el dock lee cualquier QR y te lleva a donde corresponde: token Cashu → cobrar; invoice, Lightning Address o LNURL (o `bitcoin:` unificado con `lightning=`) → pagar. Funciona en iOS y Android; con linterna si el teléfono tiene. |
 | 🏦 **Multi-mint** | Cada mint es un frasco distinto. Agregar, cambiar y quitar mints. |
+| 📧 **Lightning Address y LNURL** | Pagás a `usuario@dominio` (LUD-16) o a un QR `lnurl1…` (LUD-01/06): muestra qué acepta el destinatario, permite mensaje (LUD-12) y **verifica que la invoice sea por el monto exacto** antes de pagarla. |
 | ⏳ **Pagos a prueba de cierres** | Antes de pagar, las proofs se guardan como "en tránsito". Si cerrás la pestaña o el pago queda pendiente, al volver la app le pregunta al mint (NUT-05/07) y te devuelve lo que no se gastó. |
 | 🌱 **Semilla de 12 palabras (NUT-13)** | Cada proof se deriva de una semilla BIP-39, así que con las 12 palabras recuperás el saldo en otro navegador (o en cashu.me, Minibits…). El restore recorre todos los keysets de cada mint (NUT-09) y se queda con lo no gastado (NUT-07). Los contadores se guardan *antes* de cada operación para que nunca se repitan. |
 | 🔐 **Respaldo extra** | También exporta un token por mint con todo el saldo. |
@@ -58,6 +59,7 @@ src/
   lib/demo.js        mismo contrato, pero con un mint de juguete en memoria
   lib/useWallet.js   estado, persistencia (localStorage) y acciones
   lib/seed.js        semilla BIP-39 y contadores NUT-13 persistentes
+  lib/lnurl.js       Lightning Address / LNURL-pay (bech32 incluido)
   lib/parse.js       reconoce tokens, invoices y URIs bitcoin:/lightning:/cashu:
   three/             frasco, monedas, física, materiales toon y contornos
   ui/                sheets de recibir / enviar / mints / historial
@@ -73,7 +75,8 @@ src/
 ## Próximos pasos
 
 - Guardar las proofs cifradas en Nostr (NIP-60) y recibir nutzaps (NIP-61)
-- Pagar Lightning Addresses y payment requests (NUT-18)
+- Payment requests (NUT-18)
+- Leer QR animados (UR) para tokens muy grandes
 
 ## Licencia
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { realBackend, amountOf, sumOf } from './cashu.js'
 import { demoBackend, DEMO_MINT } from './demo.js'
+import { resolvePayTarget, requestInvoice } from './lnurl.js'
 
 /* global __FORCE_DEMO__ */
 export const FORCE_DEMO = typeof __FORCE_DEMO__ !== 'undefined' && __FORCE_DEMO__
@@ -229,6 +230,19 @@ export function useWallet() {
 
       // 🌰 → ⚡
       meltQuote: (invoice) => backend.meltQuote(ref.current.active, invoice),
+
+      // ⚡ Lightning Address / LNURL-pay: primero qué acepta, después la invoice y la cotización
+      async resolvePayTarget(target) {
+        if (backend.isDemo) return { target, domain: 'demo', min: 1, max: 1_000_000, commentAllowed: 140, desc: `Pago de prueba a ${target}` }
+        return resolvePayTarget(target)
+      },
+      async quoteAddress(info, sats, comment) {
+        const pr = backend.isDemo ? `lnbc${sats * 10}n1demo${hid()}${hid()}` : await requestInvoice(info, sats, comment)
+        const quote = await backend.meltQuote(ref.current.active, pr)
+        // No confiamos en el servidor: la invoice tiene que ser exactamente por lo que pediste.
+        if (quote.amount !== sats) throw new Error(`El servidor devolvió una invoice por ${quote.amount} sats en vez de ${sats}. No la pago.`)
+        return { ...quote, to: info.target.startsWith('lnurl') ? info.domain : info.target, memo: comment || undefined }
+      },
       async payInvoice(quote) {
         const mint = ref.current.active
         const proofs = ref.current.proofs[mint] || []
@@ -249,7 +263,7 @@ export function useWallet() {
           )
           fire('melt')
           if (res.state === 'PENDING') {
-            commit((s) => addHistory(s, { type: 'ln-out', amount: quote.amount, mint, pending: true, inflightId: id }))
+            commit((s) => addHistory(s, { type: 'ln-out', amount: quote.amount, mint, to: quote.to, memo: quote.memo, pending: true, inflightId: id }))
             return 'PENDING'
           }
           const fee = quote.fee - sumOf(res.change) // lo que realmente se quedó la red
@@ -259,6 +273,8 @@ export function useWallet() {
               amount: quote.amount,
               fee: Math.max(0, fee),
               mint,
+              to: quote.to,
+              memo: quote.memo,
             }),
           )
           return 'PAID'

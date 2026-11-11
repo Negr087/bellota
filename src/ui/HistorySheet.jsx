@@ -85,7 +85,10 @@ export default function HistorySheet({ w, onClose, toast }) {
               <li key={h.id} className={m.sign === '+' ? 'in' : 'out'}>
                 <span className="h-icon">{m.icon}</span>
                 <div className="h-main">
-                  <b>{m.label}</b>
+                  <b>
+                    {m.label}
+                    {h.to ? ` a ${h.to}` : ''}
+                  </b>
                   <small>
                     {when(h.ts)} · {shortUrl(h.mint)}
                     {h.fee ? ` · comisión ${fmtSats(h.fee)}` : ''}

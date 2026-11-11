@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AmountInput, CopyBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats } from './kit.jsx'
+import { classify } from '../lib/parse.js'
 
 function EcashOut({ w, toast }) {
   const [amount, setAmount] = useState('')
@@ -60,10 +61,21 @@ function EcashOut({ w, toast }) {
 }
 
 function LightningOut({ w, onDone, initial = '' }) {
-  const [invoice, setInvoice] = useState(initial)
+  const [text, setText] = useState(initial)
   const [quote, setQuote] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // Lightning Address / LNURL
+  const [target, setTarget] = useState(null) // lo que acepta el destinatario
+  const [looking, setLooking] = useState(false)
+  const [amount, setAmount] = useState('')
+  const [comment, setComment] = useState('')
+
+  const kind = classify(text).kind
+  const isAddr = kind === 'address'
+  const value = classify(text).value
+  const n = Number(amount)
+
   const run = async (fn) => {
     setBusy(true)
     setErr('')
@@ -75,62 +87,147 @@ function LightningOut({ w, onDone, initial = '' }) {
       setBusy(false)
     }
   }
+
   // Si venimos del escáner con una invoice, cotizamos de una
   useEffect(() => {
-    if (initial) run(async () => setQuote(await w.actions.meltQuote(initial)))
+    if (initial && classify(initial).kind === 'invoice') run(async () => setQuote(await w.actions.meltQuote(initial)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Al escribir una dirección, averiguamos qué acepta (con un respiro para no consultar letra por letra)
+  useEffect(() => {
+    setTarget(null)
+    if (!isAddr) return
+    let alive = true
+    setLooking(true)
+    const t = setTimeout(async () => {
+      try {
+        const info = await w.actions.resolvePayTarget(value)
+        if (alive) {
+          setTarget(info)
+          setErr('')
+        }
+      } catch (e) {
+        if (alive) setErr(errMsg(e))
+      } finally {
+        if (alive) setLooking(false)
+      }
+    }, 500)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAddr, value])
+
+  const max = target ? Math.min(target.max, w.balance) : w.balance
+  const amountOk = target && n >= target.min && n <= target.max
+
   return (
     <div className="stack">
-      <p className="hint">Pegá una invoice Lightning: el mint la paga y se derriten las bellotas necesarias.</p>
+      <p className="hint">Pegá una invoice o una Lightning Address (usuario@dominio): el mint paga y se derriten las bellotas necesarias.</p>
       <textarea
         className="token-area"
-        rows={3}
-        placeholder="lnbc…"
+        rows={isAddr ? 1 : 3}
+        placeholder="lnbc… o usuario@dominio.com"
         spellCheck={false}
-        value={invoice}
+        autoCapitalize="none"
+        autoComplete="off"
+        value={text}
         onChange={(e) => {
-          setInvoice(e.target.value)
+          setText(e.target.value)
           setQuote(null)
+          setErr('')
         }}
       />
       {!quote && (
         <ScanBtn
-          accept="invoice"
-          hint="Apuntá al QR de la invoice Lightning"
+          accept={['invoice', 'address']}
+          hint="Apuntá al QR de la invoice o la dirección"
           onScan={(v) => {
             setErr('')
-            setInvoice(v)
-            run(async () => setQuote(await w.actions.meltQuote(v)))
+            setText(v)
+            if (classify(v).kind === 'invoice') run(async () => setQuote(await w.actions.meltQuote(v)))
           }}
-          onWrong={(r) => setErr(r.kind === 'token' ? 'Eso es un token Cashu: para cobrarlo andá a Recibir → Ecash.' : 'Ese QR no es una invoice Lightning.')}
+          onWrong={(r) => setErr(r.kind === 'token' ? 'Eso es un token Cashu: para cobrarlo andá a Recibir → Ecash.' : 'Ese QR no es una invoice ni una Lightning Address.')}
         />
       )}
+
+      {isAddr && !quote && (
+        <>
+          {looking && <p className="muted">Buscando {value}…</p>}
+          {target && (
+            <>
+              <div className="token-card">
+                <b>⚡ {target.target.startsWith('lnurl') ? target.domain : target.target}</b>
+                {target.desc && <div className="muted">{target.desc}</div>}
+                <div className="muted">
+                  Acepta de {fmtSats(target.min)} a {fmtSats(target.max)} sats
+                </div>
+              </div>
+              <AmountInput value={amount} onChange={setAmount} max={max} />
+              {target.commentAllowed > 0 && (
+                <input
+                  className="text-in"
+                  placeholder="Mensaje (opcional)"
+                  value={comment}
+                  maxLength={target.commentAllowed}
+                  onChange={(e) => setComment(e.target.value)}
+                />
+              )}
+            </>
+          )}
+        </>
+      )}
+
       {quote && (
         <div className="token-card">
+          {quote.to && <b>⚡ a {quote.to}</b>}
           <div className="big-amount">{fmtSats(quote.amount)} sats</div>
           <div className="muted">+ hasta {fmtSats(quote.fee)} sats de reserva de comisión (lo que sobre vuelve)</div>
+          {quote.memo && <div className="memo">“{quote.memo}”</div>}
           {quote.amount + quote.fee > w.balance && <div className="warn">No te alcanza: tenés {fmtSats(w.balance)} sats en este mint.</div>}
         </div>
       )}
       {err && <p className="error">{err}</p>}
       {!quote ? (
-        <button className="btn primary xl" disabled={!invoice.trim() || busy} onClick={() => run(async () => setQuote(await w.actions.meltQuote(invoice)))}>
-          {busy ? 'Consultando…' : 'Ver cuánto sale'}
-        </button>
+        isAddr ? (
+          <button
+            className="btn primary xl"
+            disabled={!amountOk || busy}
+            onClick={() => run(async () => setQuote(await w.actions.quoteAddress(target, n, comment.trim())))}
+          >
+            {busy ? 'Pidiendo invoice…' : target && n && !amountOk ? `Entre ${fmtSats(target.min)} y ${fmtSats(target.max)} sats` : 'Ver cuánto sale'}
+          </button>
+        ) : (
+          <button className="btn primary xl" disabled={!text.trim() || busy} onClick={() => run(async () => setQuote(await w.actions.meltQuote(value)))}>
+            {busy ? 'Consultando…' : 'Ver cuánto sale'}
+          </button>
+        )
       ) : (
-        <button
-          className="btn primary xl"
-          disabled={busy || quote.amount + quote.fee > w.balance}
-          onClick={() =>
-            run(async () => {
-              const st = await w.actions.payInvoice(quote)
-              onDone(st === 'PENDING' ? '⏳ Pago en curso: te avisamos en el historial' : `⚡ Pagaste ${fmtSats(quote.amount)} sats`)
-            })
-          }
-        >
-          {busy ? 'Pagando…' : `Pagar ${fmtSats(quote.amount)} sats ⚡`}
-        </button>
+        <>
+          <button
+            className="btn primary xl"
+            disabled={busy || quote.amount + quote.fee > w.balance}
+            onClick={() =>
+              run(async () => {
+                const st = await w.actions.payInvoice(quote)
+                onDone(
+                  st === 'PENDING'
+                    ? '⏳ Pago en curso: te avisamos en el historial'
+                    : `⚡ Pagaste ${fmtSats(quote.amount)} sats${quote.to ? ` a ${quote.to}` : ''}`,
+                )
+              })
+            }
+          >
+            {busy ? 'Pagando…' : `Pagar ${fmtSats(quote.amount)} sats ⚡`}
+          </button>
+          {quote.to && !busy && (
+            <button className="btn ghost" onClick={() => setQuote(null)}>
+              Cambiar monto
+            </button>
+          )}
+        </>
       )}
     </div>
   )
