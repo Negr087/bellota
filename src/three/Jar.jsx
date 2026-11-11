@@ -7,24 +7,38 @@ import { Hull, INK, toonRamp } from './materials.js'
 export const JAR_R = 1.45 // usable inner radius
 export const JAR_H = 2.9
 
-// Invisible physics walls (taller than the jar so nothing escapes while falling)
+// Invisible physics walls: a 28-sided ring, taller than the jar so nothing escapes while falling.
+// Thick (0.6) walls and a thick floor so fast coins can't tunnel through in a single physics step.
+const WALL_T = 0.3 // half thickness
+const WALL_SIDES = 28
 export function JarColliders() {
+  const center = JAR_R + 0.02 + WALL_T // inner face sits just inside the glass
   const walls = useMemo(() => {
-    const n = 22
     const out = []
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2
-      out.push({ a, pos: [Math.cos(a) * (JAR_R + 0.12), 4.4, Math.sin(a) * (JAR_R + 0.12)] })
+    for (let i = 0; i < WALL_SIDES; i++) {
+      const a = (i / WALL_SIDES) * Math.PI * 2
+      out.push({ a, pos: [Math.cos(a) * center, 4.4, Math.sin(a) * center] })
     }
     return out
-  }, [])
-  const half = Math.tan(Math.PI / 22) * (JAR_R + 0.12) + 0.04
+  }, [center])
+  // wide enough to overlap neighbours at the outer face, so there are no gaps between segments
+  const half = Math.tan(Math.PI / WALL_SIDES) * (center + WALL_T) + 0.05
   return (
     <RigidBody type="fixed" colliders={false} friction={0.9}>
-      <CuboidCollider args={[JAR_R + 0.6, 0.1, JAR_R + 0.6]} position={[0, -0.1, 0]} />
+      <CuboidCollider args={[JAR_R + 1, 0.5, JAR_R + 1]} position={[0, -0.5, 0]} />
       {walls.map((w, i) => (
-        <CuboidCollider key={i} args={[0.1, 4.5, half]} position={w.pos} rotation={[0, -w.a, 0]} />
+        <CuboidCollider key={i} args={[WALL_T, 4.5, half]} position={w.pos} rotation={[0, -w.a, 0]} />
       ))}
+    </RigidBody>
+  )
+}
+
+// Invisible lid, only while shaking: coins bounce off it instead of flying over the rim.
+// (It can't stay on all the time: new coins pour in from above the jar.)
+export function ShakeLid() {
+  return (
+    <RigidBody type="fixed" colliders={false} restitution={0.3}>
+      <CuboidCollider args={[JAR_R + 1, 0.5, JAR_R + 1]} position={[0, JAR_H + 0.42, 0]} />
     </RigidBody>
   )
 }

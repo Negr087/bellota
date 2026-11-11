@@ -4,7 +4,9 @@ import { Html } from '@react-three/drei'
 import { RigidBody, CylinderCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { COIN_HALF, Hull, coinMaterials, coinRadius, tierOf } from './materials.js'
-import { JAR_R } from './Jar.jsx'
+import { JAR_R, JAR_H, ShakeLid } from './Jar.jsx'
+
+const GRAVITY = 14 // keep in sync with <Physics gravity> in Scene.jsx
 
 const MAX_COINS = 160
 const geoCache = new Map()
@@ -209,16 +211,45 @@ export function Coins({ proofs, fx, amountOf }) {
     })
   }, [wanted])
 
-  // Shake the jar
+  // Shake the jar: each coin gets just enough upward speed to reach a random height
+  // *below the rim* (v = √(2·g·h)), so they bounce around inside instead of flying out.
+  const [lid, setLid] = useState(false)
   useEffect(() => {
     if (fx.kind !== 'shake') return
+    setLid(true)
     for (const ref of bodies.current.values()) {
       const b = ref.current
       if (!b) continue
-      b.setLinvel({ x: rand(-2.5, 2.5), y: rand(5, 8), z: rand(-2.5, 2.5) }, true)
-      b.setAngvel({ x: rand(-10, 10), y: rand(-10, 10), z: rand(-10, 10) }, true)
+      const y = b.translation().y
+      const top = rand(JAR_H * 0.5, JAR_H - 0.45)
+      const vy = Math.sqrt(2 * GRAVITY * Math.max(0.25, top - y))
+      b.setLinvel({ x: rand(-1.4, 1.4), y: vy, z: rand(-1.4, 1.4) }, true)
+      b.setAngvel({ x: rand(-9, 9), y: rand(-9, 9), z: rand(-9, 9) }, true)
     }
+    const t = setTimeout(() => setLid(false), 1800)
+    return () => clearTimeout(t)
   }, [fx])
+
+  // Dev-only hook for physics tests (stripped from production builds)
+  if (import.meta.env.DEV) window.__coinPositions = () => [...bodies.current.values()].map((r) => r.current?.translation()).filter(Boolean)
+
+  // Safety net: a coin that somehow ended up outside the jar drops back in from the top.
+  const lastCheck = useRef(0)
+  useFrame((state) => {
+    if (state.clock.elapsedTime - lastCheck.current < 0.5) return
+    lastCheck.current = state.clock.elapsedTime
+    for (const ref of bodies.current.values()) {
+      const b = ref.current
+      if (!b) continue
+      const p = b.translation()
+      if (Math.hypot(p.x, p.z) > JAR_R + 0.25 || p.y < -0.6 || p.y > 14) {
+        const a = Math.random() * Math.PI * 2
+        const rr = Math.random() * (JAR_R - 0.7)
+        b.setTranslation({ x: Math.cos(a) * rr, y: JAR_H + 0.9, z: Math.sin(a) * rr }, true)
+        b.setLinvel({ x: 0, y: -2, z: 0 }, true)
+      }
+    }
+  })
 
   // Floating label over the tapped coin
   useFrame(() => {
@@ -239,6 +270,7 @@ export function Coins({ proofs, fx, amountOf }) {
 
   return (
     <group>
+      {lid && <ShakeLid />}
       {items.map((it) =>
         it.state === 'live' ? (
           <LiveCoin key={it.key} item={it} bodies={bodies} onPick={setPicked} />

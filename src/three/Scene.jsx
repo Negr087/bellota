@@ -111,7 +111,7 @@ export default function Scene({ proofs, fx, amountOf, onPoke, onStage }) {
       <directionalLight position={[-5, 3, -2]} intensity={0.6} color="#FFD9A8" />
       <Leaves />
       <Suspense fallback={null}>
-        <Physics gravity={[0, -14, 0]} timeStep="vary">
+        <Physics gravity={[0, -14, 0]} timeStep={1 / 60} interpolate>
           <JarColliders />
           <Coins proofs={proofs} fx={fx} amountOf={amountOf} />
           <ReadySignal onReady={() => onStage?.('ready')} />
