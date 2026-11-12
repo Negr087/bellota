@@ -11,6 +11,7 @@ import SeedSheet from './ui/SeedSheet.jsx'
 import Onboarding, { onboardingDone } from './ui/Onboarding.jsx'
 import SettingsSheet from './ui/SettingsSheet.jsx'
 import { useLook } from './lib/look.js'
+import { cue } from './lib/feedback.js'
 
 const Scene = lazy(() => import('./three/Scene.jsx'))
 
@@ -83,6 +84,10 @@ export default function App() {
   const w = useWallet()
   const [sheet, setSheet] = useState(null)
   const look = useLook()
+  // Sound + vibration for each wallet event (receive / send / pay / shake)
+  useEffect(() => {
+    if (w.fx.n > 0) cue(w.fx.kind)
+  }, [w.fx])
   // The "tap an acorn / shake" hint disappears for good once you've shaken the jar.
   const [poked, setPoked] = useState(() => {
     try {

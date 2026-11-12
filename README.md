@@ -29,7 +29,8 @@ Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #Nut
 | ⏳ **Crash-safe payments** | Before paying, proofs are saved as "in transit". If you close the tab or the payment stays pending, the app asks the mint (NUT-05/07) when you come back and returns whatever wasn't spent. |
 | 📲 **Installable PWA** | Add it to your home screen (Android, iOS, desktop). A small service worker caches the app so it opens offline; mint and Lightning Address traffic is never cached. |
 | 🔗 **Deep links** | `…/bellota/?scan=<token or invoice or address>` opens straight to claim or pay, and the app registers as a `web+cashu:` handler. |
-| 🎨 **Themes & jars** | ⚙️ Settings lets you pick a background theme (Paper, Night with stars and fireflies, Snowfall, Orange pill sunburst, Autumn leaves) and a jar (acorn cap, mason jar, honey pot, cork bottle). Every jar shares the same physics. |
+| 🎨 **Themes & jars** | ⚙️ Settings lets you pick a background theme (Paper, Night with stars and fireflies, Snowfall, Orange pill sunburst, Autumn leaves) and a jar (acorn cap, mason jar, honey pot, cork bottle). Every jar shares the same physics. The Night theme also turns the whole interface dark. |
+| 🔊 **Sound & haptics** | Optional, synthesized with Web Audio (no audio files): coins clink on real physics collisions (louder for harder hits, lower for bigger coins), a chime when sats arrive, a whoosh when you send, a zap when you pay. Vibration patterns for each event on Android. Toggle both in ⚙️. |
 | 🏦 **Multi-mint** | Each mint is its own jar. Add, switch and remove mints. |
 | 🔐 **Token backup** | Also exports one token per mint with the whole balance. |
 | 👋 **First-run intro** | Three quick cards: what ecash is, an interactive splitter that turns any amount into its power-of-2 acorns (1,337 = 1,024 + 256 + 32 + 16 + 8 + 1), and a choice between the demo and real mints. Replay it from 🏦 → *How it works*. |

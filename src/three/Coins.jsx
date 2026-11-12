@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import { RigidBody, CylinderCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { COIN_HALF, Hull, coinMaterials, coinRadius, tierOf } from './materials.js'
 import { JAR_R, JAR_H, ShakeLid } from './Jar.jsx'
+import { clink } from '../lib/feedback.js'
 
 const GRAVITY = 14 // keep in sync with <Physics gravity> in Scene.jsx
 
@@ -27,9 +28,16 @@ function spawnPose(i, intro, r) {
   }
 }
 
-function LiveCoin({ item, bodies, onPick }) {
+// memo + initial velocities created once: @react-three/rapier re-applies linearVelocity /
+// angularVelocity props whenever they change, and a fresh array literal on every render would
+// silently overwrite the shake impulse.
+const LiveCoin = memo(function LiveCoin({ item, bodies, speeds, onPick }) {
   const r = coinRadius(item.amount)
   const ref = useRef()
+  const [initVel] = useState(() => ({
+    lin: [0, item.intro ? 0 : -2, 0],
+    ang: [rand(-4, 4), rand(-4, 4), rand(-4, 4)],
+  }))
   useEffect(() => {
     bodies.current.set(item.key, ref)
     return () => bodies.current.delete(item.key)
@@ -40,13 +48,18 @@ function LiveCoin({ item, bodies, onPick }) {
       colliders={false}
       position={item.pose.pos}
       rotation={item.pose.rot}
-      angularVelocity={[rand(-4, 4), rand(-4, 4), rand(-4, 4)]}
-      linearVelocity={[0, item.intro ? 0 : -2, 0]}
+      angularVelocity={initVel.ang}
+      linearVelocity={initVel.lin}
       restitution={0.25}
       friction={0.7}
       linearDamping={0.15}
       angularDamping={0.35}
       ccd
+      onCollisionEnter={() => {
+        // speed from the frame *before* the impact (after it, the bounce has already slowed the coin)
+        const s = speeds.current.get(item.key) ?? 0
+        clink(Math.min(1, s / 7), r)
+      }}
     >
       <CylinderCollider args={[COIN_HALF, r]} />
       <mesh
@@ -61,7 +74,7 @@ function LiveCoin({ item, bodies, onPick }) {
       </mesh>
     </RigidBody>
   )
-}
+})
 
 // A coin on its way out: "toss" = flies out the top (ecash send), "melt" = melts into a bolt (LN payment)
 function LeavingCoin({ item, onDone }) {
@@ -233,6 +246,15 @@ export function Coins({ proofs, fx, amountOf }) {
   // Dev-only hook for physics tests (stripped from production builds)
   if (import.meta.env.DEV) window.__coinPositions = () => [...bodies.current.values()].map((r) => r.current?.translation()).filter(Boolean)
 
+  // Each coin's speed, one frame behind, so collision sounds know how hard the impact was.
+  const speeds = useRef(new Map())
+  useFrame(() => {
+    for (const [key, ref] of bodies.current) {
+      const v = ref.current?.linvel()
+      if (v) speeds.current.set(key, Math.hypot(v.x, v.y, v.z))
+    }
+  })
+
   // Safety net: a coin that somehow ended up outside the jar drops back in from the top.
   const lastCheck = useRef(0)
   useFrame((state) => {
@@ -273,7 +295,7 @@ export function Coins({ proofs, fx, amountOf }) {
       {lid && <ShakeLid />}
       {items.map((it) =>
         it.state === 'live' ? (
-          <LiveCoin key={it.key} item={it} bodies={bodies} onPick={setPicked} />
+          <LiveCoin key={it.key} item={it} bodies={bodies} speeds={speeds} onPick={setPicked} />
         ) : (
           <LeavingCoin key={it.key} item={it} onDone={done} />
         ),
