@@ -9,6 +9,8 @@ import MintsSheet from './ui/MintsSheet.jsx'
 import HistorySheet from './ui/HistorySheet.jsx'
 import SeedSheet from './ui/SeedSheet.jsx'
 import Onboarding, { onboardingDone } from './ui/Onboarding.jsx'
+import SettingsSheet from './ui/SettingsSheet.jsx'
+import { useLook } from './lib/look.js'
 
 const Scene = lazy(() => import('./three/Scene.jsx'))
 
@@ -80,6 +82,26 @@ export function AcornLogo({ size = 34 }) {
 export default function App() {
   const w = useWallet()
   const [sheet, setSheet] = useState(null)
+  const look = useLook()
+  // The "tap an acorn / shake" hint disappears for good once you've shaken the jar.
+  const [poked, setPoked] = useState(() => {
+    try {
+      return localStorage.getItem('bellota:poked') === '1'
+    } catch {
+      return false
+    }
+  })
+  const shake = useCallback(() => {
+    w.actions.shake()
+    if (!poked) {
+      setPoked(true)
+      try {
+        localStorage.setItem('bellota:poked', '1')
+      } catch {
+        /* no storage */
+      }
+    }
+  }, [w.actions, poked])
   // First visit: a short intro. Not for people arriving via a ?scan= link, nor for wallets already in use.
   const [intro, setIntro] = useState(
     () => !onboardingDone() && !new URLSearchParams(location.search).has('scan') && w.total === 0 && w.state.history.length === 0,
@@ -130,16 +152,20 @@ export default function App() {
 
   return (
     <div className="app">
-      <div className="bg" aria-hidden="true">
-        <div className="sun" />
-        <div className="blob b1" />
-        <div className="blob b2" />
-      </div>
+      <div className="bg" aria-hidden="true" />
 
       <div className="scene">
         <SceneGuard onFail={() => setStage('failed')}>
           <Suspense fallback={null}>
-            <Scene proofs={w.activeProofs} fx={w.fx} amountOf={w.amountOf} onPoke={w.actions.shake} onStage={setStage} />
+            <Scene
+              proofs={w.activeProofs}
+              fx={w.fx}
+              amountOf={w.amountOf}
+              onPoke={shake}
+              onStage={setStage}
+              theme={look.theme}
+              jar={look.jar}
+            />
           </Suspense>
         </SceneGuard>
       </div>
@@ -148,7 +174,7 @@ export default function App() {
       <header className="top">
         <div className="brand">
           <AcornLogo />
-          <span>Bellota</span>
+          <span className="brand-name">Bellota</span>
           {w.mode === 'demo' && <span className="tag">demo</span>}
         </div>
         <div className="top-actions">
@@ -158,19 +184,22 @@ export default function App() {
           <button className="icon-btn" onClick={() => setSheet('history')} aria-label="History">
             📜
           </button>
+          <button className="icon-btn" onClick={() => setSheet('settings')} aria-label="Settings">
+            ⚙️
+          </button>
         </div>
       </header>
 
       <section className="balance">
-        <small>in this jar</small>
+        <span className="label">In this jar</span>
         <div className="bal">
           {fmtSats(shown)} <span>sats</span>
         </div>
-        <small className="sub">
-          {w.activeProofs.length} {w.activeProofs.length === 1 ? 'acorn' : 'acorns'}
-          {mintCount > 1 && ` · ${fmtSats(w.total)} sats across ${mintCount} mints`}
-        </small>
-        {w.inTransit > 0 && <small className="sub">⏳ {fmtSats(w.inTransit)} sats in transit (unconfirmed Lightning payment)</small>}
+        <span className="meta">
+          🌰 {w.activeProofs.length} {w.activeProofs.length === 1 ? 'acorn' : 'acorns'}
+          {mintCount > 1 && ` · ${fmtSats(w.total)} sats total in ${mintCount} mints`}
+        </span>
+        {w.inTransit > 0 && <span className="meta transit">⏳ {fmtSats(w.inTransit)} sats in transit (Lightning payment not confirmed yet)</span>}
       </section>
 
       {empty && (
@@ -207,13 +236,13 @@ export default function App() {
         </button>
       )}
 
-      {!empty && <p className="poke-hint">tap an acorn to see its value · tap the jar to shake it</p>}
+      {!empty && !poked && <p className="poke-hint">Tap an acorn to see its value · tap the jar to shake it</p>}
 
       <nav className="dock">
         <button className="dock-btn in" onClick={() => setSheet('receive')}>
           <span className="dock-ico">↓</span> Receive
         </button>
-        <button className="dock-btn shake" onClick={w.actions.shake} aria-label="Shake the jar" title="Shake">
+        <button className="dock-btn shake" onClick={shake} aria-label="Shake the jar" title="Shake">
           🫨
         </button>
         <button className="dock-btn shake scan" onClick={() => setScanning(true)} aria-label="Scan QR" title="Scan">
@@ -247,14 +276,21 @@ export default function App() {
           onClose={close}
           toast={toast}
           onSeed={() => setSheet('seed')}
+        />
+      )}
+      {intro && <Onboarding w={w} forceDemo={FORCE_DEMO} onClose={() => setIntro(false)} />}
+      {sheet === 'seed' && <SeedSheet w={w} onClose={close} toast={toast} />}
+      {sheet === 'settings' && (
+        <SettingsSheet
+          w={w}
+          look={look}
+          onClose={close}
           onIntro={() => {
             close()
             setIntro(true)
           }}
         />
       )}
-      {intro && <Onboarding w={w} forceDemo={FORCE_DEMO} onClose={() => setIntro(false)} />}
-      {sheet === 'seed' && <SeedSheet w={w} onClose={close} toast={toast} />}
       {sheet === 'history' && <HistorySheet w={w} onClose={close} toast={toast} />}
 
       <div className="toasts" aria-live="polite">

@@ -33,27 +33,74 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 
 .app { position: relative; height: 100%; width: 100%; overflow: hidden; }
 
-/* ---------- background ---------- */
-.bg {
-  position: absolute; inset: 0; z-index: 0;
-  background:
+/* ---------- background themes (html[data-theme], see src/lib/look.js) ---------- */
+:root {
+  --on-bg: var(--ink); /* text drawn straight on the background */
+  --bg-img:
+    radial-gradient(circle at 1px 1px, rgba(43, 29, 20, .1) 1.3px, transparent 0) 0 0 / 22px 22px,
+    linear-gradient(180deg, #fff8ec 0%, #ffefd4 100%);
+}
+html[data-theme='autumn'] {
+  --bg-img:
     radial-gradient(circle at 1px 1px, rgba(43, 29, 20, .13) 1.4px, transparent 0) 0 0 / 22px 22px,
     linear-gradient(180deg, #ffe9c7 0%, #ffd9a8 55%, #ffc98a 100%);
 }
-.sun {
-  position: absolute; width: 46vmin; height: 46vmin; right: -10vmin; top: 6vh;
-  border-radius: 50%; background: #ffe36e; border: var(--b);
-  box-shadow: 0 0 0 18px rgba(255, 227, 110, .35), 0 0 0 40px rgba(255, 227, 110, .18);
+html[data-theme='snow'] {
+  --bg-img:
+    radial-gradient(circle at 1px 1px, rgba(60, 90, 140, .12) 1.3px, transparent 0) 0 0 / 22px 22px,
+    linear-gradient(180deg, #f2f8ff 0%, #dbe9fa 60%, #c6dbf3 100%);
 }
-.blob { position: absolute; border: var(--b); border-radius: 50%; }
-.b1 { width: 30vmin; height: 30vmin; left: -8vmin; bottom: 22vh; background: var(--mint); opacity: .85; }
-.b2 { width: 14vmin; height: 14vmin; left: 18vw; top: 16vh; background: var(--grape-l); opacity: .8; }
+html[data-theme='orange'] { --bg-img: linear-gradient(180deg, #ffb24a, #ff9330); }
+html[data-theme='night'] {
+  --on-bg: #fff4e0;
+  --bg-img: linear-gradient(180deg, #2a3466 0%, #181e3d 55%, #10142a 100%);
+}
+html, body { background: var(--cream); }
+html[data-theme='night'], html[data-theme='night'] body { background: #181e3d; }
+
+.bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: var(--bg-img); }
+.bg::before, .bg::after { content: none; position: absolute; pointer-events: none; }
+/* Orange pill: slowly turning sunburst */
+html[data-theme='orange'] .bg::before {
+  content: ''; inset: -60%;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, rgba(255, 236, 190, .5) 0 8deg, transparent 8deg 18deg);
+  animation: rays 90s linear infinite;
+}
+html[data-theme='orange'] .bg::after {
+  content: ''; inset: 0; background: radial-gradient(circle at 50% 45%, transparent 30%, rgba(201, 90, 20, .35) 100%);
+}
+@keyframes rays { to { transform: rotate(1turn); } }
+/* Night: twinkling stars and a moon */
+html[data-theme='night'] .bg::before {
+  content: ''; inset: 0;
+  background:
+    radial-gradient(1.6px 1.6px at 12% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 28% 8%, #fff 50%, transparent 51%),
+    radial-gradient(1.8px 1.8px at 46% 26%, #ffe9a8 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 64% 12%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 85% 30%, #fff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 8% 44%, #fff 50%, transparent 51%),
+    radial-gradient(1.6px 1.6px at 92% 52%, #ffe9a8 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 36% 40%, #fff 50%, transparent 51%),
+    radial-gradient(1.2px 1.2px at 74% 44%, #fff 50%, transparent 51%),
+    radial-gradient(1.4px 1.4px at 20% 62%, #fff 50%, transparent 51%);
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+html[data-theme='night'] .bg::after {
+  content: ''; width: 64px; height: 64px; right: 9vw; top: 14vh; border-radius: 50%;
+  background: radial-gradient(circle at 35% 40%, rgba(220, 200, 140, .55) 0 6px, transparent 7px), radial-gradient(circle at 62% 66%, rgba(220, 200, 140, .5) 0 4px, transparent 5px), #fff3c4;
+  border: var(--b); box-shadow: 0 0 0 10px rgba(255, 243, 196, .12), 0 0 0 26px rgba(255, 243, 196, .06);
+}
+@keyframes twinkle { from { opacity: .55; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme='orange'] .bg::before, html[data-theme='night'] .bg::before { animation: none; }
+}
 
 .scene { position: absolute; inset: 0; z-index: 1; }
 .scene canvas { touch-action: none; }
 .scene-loading {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  font-family: var(--display); font-size: 1.3rem;
+  position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 0 24px;
+  font-family: var(--display); font-size: 1.3rem; color: var(--on-bg);
 }
 
 /* ---------- top bar ---------- */
@@ -64,7 +111,14 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
   pointer-events: none;
 }
 .top > * { pointer-events: auto; }
-.brand { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 700; font-size: 1.55rem; letter-spacing: -.5px; }
+.brand { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 700; font-size: 1.55rem; letter-spacing: -.5px; color: var(--on-bg); min-width: 0; }
+/* Phones: the acorn logo stands in for the name so the mint chip and the 2 buttons fit */
+@media (max-width: 430px) {
+  .brand-name { display: none; }
+  .top { gap: 8px; }
+  .top-actions { gap: 6px; }
+  .top .icon-btn { width: 40px; height: 40px; }
+}
 .tag {
   font-size: .7rem; font-family: var(--body); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
   background: var(--grape); color: #fff; border: var(--b); border-radius: 99px; padding: 2px 8px; box-shadow: var(--shadow-s);
@@ -76,6 +130,9 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
   font-weight: 600; font-size: .9rem;
 }
 .mint-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-actions { flex: 0 1 auto; }
+.mint-chip { min-width: 0; flex: 0 1 auto; }
+.brand { flex: none; }
 .icon-btn {
   width: 42px; height: 42px; display: grid; place-items: center; flex: none;
   background: var(--paper); border: var(--b); border-radius: 14px; box-shadow: var(--shadow-s); font-size: 1.1rem;
@@ -89,8 +146,17 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
   top: calc(max(14px, env(safe-area-inset-top)) + 58px);
   text-align: center; pointer-events: none; width: max-content; max-width: 92vw;
 }
-.balance small { display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; font-size: .72rem; opacity: .7; }
-.balance .sub { text-transform: none; letter-spacing: 0; font-size: .85rem; opacity: .75; margin-top: 2px; }
+.balance { display: flex; flex-direction: column; align-items: center; }
+.balance .label {
+  font-weight: 700; text-transform: uppercase; letter-spacing: 1.6px; font-size: .78rem; color: var(--on-bg);
+}
+/* Small facts under the number: a solid pill so they read on any theme and over the 3D scene */
+.balance .meta {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+  background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 99px;
+  box-shadow: 2px 2px 0 var(--ink); padding: 4px 12px; font-size: .86rem; font-weight: 600; white-space: nowrap;
+}
+.balance .meta.transit { background: #fff0b8; white-space: normal; max-width: 88vw; text-align: center; }
 .bal {
   font-family: var(--display); font-weight: 700; font-size: clamp(2.8rem, 11vw, 4.6rem); line-height: 1;
   color: var(--paper); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill;
@@ -107,8 +173,10 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 .bubble b { font-family: var(--display); font-size: 1.15rem; }
 .bubble span { font-size: .9rem; line-height: 1.35; }
 .poke-hint {
-  position: absolute; z-index: 3; bottom: 112px; left: 0; right: 0; text-align: center; margin: 0;
-  font-size: .75rem; opacity: .6; pointer-events: none; padding: 0 20px;
+  position: absolute; z-index: 3; bottom: 112px; left: 50%; transform: translateX(-50%); margin: 0;
+  width: max-content; max-width: calc(100vw - 32px); text-align: center; pointer-events: none;
+  background: rgba(255, 253, 247, .92); color: var(--ink); border: 2px solid var(--ink); border-radius: 99px;
+  padding: 5px 12px; font-size: .8rem; font-weight: 600;
 }
 
 /* ---------- dock ---------- */
@@ -402,3 +470,18 @@ code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: .85em;
 .small-print { font-size: .78rem; margin: 0; }
 .token-area.dragging { outline: 3px dashed var(--amber); outline-offset: 3px; }
 .file-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- settings: theme & jar pickers ---------- */
+.look-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+.look-grid.jars { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.look-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left;
+  background: var(--paper); border: 2px solid var(--ink); border-radius: 16px; padding: 8px; box-shadow: var(--shadow-s);
+}
+.look-card.on { outline: 3px solid var(--amber); outline-offset: 1px; background: #fff1d2; }
+.look-card b { font-size: .9rem; }
+.look-card small { font-size: .74rem; opacity: .7; line-height: 1.2; }
+.look-swatch { width: 100%; height: 46px; border-radius: 10px; border: 2px solid var(--ink); }
+.look-icon {
+  width: 100%; height: 46px; border-radius: 10px; border: 2px solid var(--ink); display: grid; place-items: center; font-size: 1.6rem;
+}

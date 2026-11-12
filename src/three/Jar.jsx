@@ -66,24 +66,24 @@ function leafTexture() {
   return t
 }
 
-// Lid shaped like an acorn cap; it lifts when coins come in or go out
-export function JarLid({ open }) {
-  const ref = useRef()
+function canvasTexture(w, h, draw, repeat) {
+  const c = document.createElement('canvas')
+  c.width = w
+  c.height = h
+  draw(c.getContext('2d'))
+  const t = new THREE.CanvasTexture(c)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  if (repeat) t.repeat.set(...repeat)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
+// 🌰 Acorn cap (the original lid)
+function AcornCap() {
   const tex = useMemo(leafTexture, [])
   const ramp = toonRamp()
-  useFrame((_, dt) => {
-    const g = ref.current
-    if (!g) return
-    const k = 1 - Math.exp(-dt * 7)
-    const ty = open ? JAR_H + 0.75 : JAR_H + 0.12
-    const tr = open ? 0.75 : 0
-    const tx = open ? -2.1 : 0
-    g.position.y += (ty - g.position.y) * k
-    g.position.x += (tx - g.position.x) * k
-    g.rotation.z += (tr - g.rotation.z) * k
-  })
   return (
-    <group ref={ref} position={[0, JAR_H + 0.12, 0]}>
+    <>
       <mesh scale={[1, 0.5, 1]} position={[0, 0.02, 0]}>
         <sphereGeometry args={[1.82, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2]} />
         <meshToonMaterial map={tex} gradientMap={ramp} />
@@ -100,6 +100,140 @@ export function JarLid({ open }) {
         <meshToonMaterial color="#6E4220" gradientMap={ramp} />
         <Hull scale={[1.3, 1.1, 1.3]} />
       </mesh>
+    </>
+  )
+}
+
+// 🫙 Mason jar: metal screw band with ridges and a flat top
+function MasonLid() {
+  const ramp = toonRamp()
+  return (
+    <>
+      <mesh position={[0, 0.1, 0]}>
+        <cylinderGeometry args={[1.7, 1.7, 0.42, 64]} />
+        <meshToonMaterial color="#C3CBD3" gradientMap={ramp} />
+        <Hull scale={[1.02, 1.12, 1.02]} />
+      </mesh>
+      {[-0.03, 0.1, 0.23].map((y) => (
+        <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[1.71, 0.025, 6, 64]} />
+          <meshBasicMaterial color="#7D8893" />
+        </mesh>
+      ))}
+      <mesh position={[0, 0.33, 0]}>
+        <cylinderGeometry args={[1.5, 1.6, 0.06, 64]} />
+        <meshToonMaterial color="#A9B3BD" gradientMap={ramp} />
+      </mesh>
+    </>
+  )
+}
+
+// 🍯 Honey pot: gingham cloth cover tied with a string
+function HoneyCloth() {
+  const ramp = toonRamp()
+  const tex = useMemo(
+    () =>
+      canvasTexture(
+        128,
+        128,
+        (ctx) => {
+          ctx.fillStyle = '#FFF7EC'
+          ctx.fillRect(0, 0, 128, 128)
+          ctx.fillStyle = 'rgba(222, 72, 58, .55)'
+          for (let i = 0; i < 4; i++) {
+            ctx.fillRect(i * 32, 0, 16, 128)
+            ctx.fillRect(0, i * 32, 128, 16)
+          }
+        },
+        [6, 3],
+      ),
+    [],
+  )
+  return (
+    <>
+      <mesh scale={[1, 0.38, 1]} position={[0, 0.02, 0]}>
+        <sphereGeometry args={[1.84, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshToonMaterial map={tex} gradientMap={ramp} />
+        <Hull scale={[1.03, 1.08, 1.03]} />
+      </mesh>
+      {/* the cloth hanging over the rim */}
+      <mesh position={[0, -0.22, 0]}>
+        <cylinderGeometry args={[1.84, 2.02, 0.5, 48, 1, true]} />
+        <meshToonMaterial map={tex} gradientMap={ramp} side={THREE.DoubleSide} />
+        <Hull scale={[1.02, 1.02, 1.02]} />
+      </mesh>
+      <mesh position={[0, -0.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.7, 0.06, 8, 64]} />
+        <meshToonMaterial color="#C9572B" gradientMap={ramp} />
+      </mesh>
+      {/* bow */}
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * 0.22, -0.08, 1.74]} rotation={[0, 0, side * 0.5]}>
+          <torusGeometry args={[0.16, 0.05, 6, 16]} />
+          <meshToonMaterial color="#C9572B" gradientMap={ramp} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+// 🍾 Cork stopper
+function Cork() {
+  const ramp = toonRamp()
+  const tex = useMemo(
+    () =>
+      canvasTexture(
+        128,
+        128,
+        (ctx) => {
+          ctx.fillStyle = '#D2A570'
+          ctx.fillRect(0, 0, 128, 128)
+          for (let i = 0; i < 220; i++) {
+            ctx.fillStyle = Math.random() < 0.5 ? 'rgba(120, 78, 38, .45)' : 'rgba(250, 220, 170, .5)'
+            ctx.beginPath()
+            ctx.arc(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 2.5, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        },
+        [3, 1],
+      ),
+    [],
+  )
+  return (
+    <>
+      <mesh position={[0, 0.3, 0]}>
+        <cylinderGeometry args={[1.5, 1.4, 0.85, 48]} />
+        <meshToonMaterial map={tex} gradientMap={ramp} />
+        <Hull scale={[1.03, 1.06, 1.03]} />
+      </mesh>
+      <mesh position={[0, 0.73, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.42, 0.07, 8, 48]} />
+        <meshToonMaterial color="#A97B47" gradientMap={ramp} />
+      </mesh>
+    </>
+  )
+}
+
+const LIDS = { acorn: AcornCap, mason: MasonLid, honey: HoneyCloth, cork: Cork }
+
+// The lid lifts and slides aside when coins come in or go out (same motion for every style)
+export function JarLid({ open, style = 'acorn' }) {
+  const ref = useRef()
+  const Lid = LIDS[style] || AcornCap
+  useFrame((_, dt) => {
+    const g = ref.current
+    if (!g) return
+    const k = 1 - Math.exp(-dt * 7)
+    const ty = open ? JAR_H + 0.75 : JAR_H + 0.12
+    const tr = open ? 0.75 : 0
+    const tx = open ? -2.1 : 0
+    g.position.y += (ty - g.position.y) * k
+    g.position.x += (tx - g.position.x) * k
+    g.rotation.z += (tr - g.rotation.z) * k
+  })
+  return (
+    <group ref={ref} position={[0, JAR_H + 0.12, 0]}>
+      <Lid />
     </group>
   )
 }
@@ -122,14 +256,14 @@ function GlassEdges() {
   )
 }
 
-export function JarGlass({ onPoke }) {
+export function JarGlass({ onPoke, glass = '#CDEFFF', glassOpacity = 0.28, rim = '#DDF4FF', bottom = '#A9DDF5' }) {
   const ramp = toonRamp()
   return (
     <group>
       {/* glass */}
       <mesh position={[0, JAR_H / 2, 0]} onPointerDown={onPoke} renderOrder={2}>
         <cylinderGeometry args={[JAR_R + 0.12, JAR_R + 0.12, JAR_H, 64, 1, true]} />
-        <meshBasicMaterial color="#CDEFFF" transparent opacity={0.28} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={glass} transparent opacity={glassOpacity} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <GlassEdges />
       {/* cartoon highlights */}
@@ -146,32 +280,32 @@ export function JarGlass({ onPoke }) {
       {/* top rim */}
       <mesh position={[0, JAR_H, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[JAR_R + 0.14, 0.1, 12, 64]} />
-        <meshToonMaterial color="#DDF4FF" gradientMap={ramp} />
+        <meshToonMaterial color={rim} gradientMap={ramp} />
         <Hull scale={[1.01, 1.01, 1.6]} />
       </mesh>
       {/* bottom */}
       <mesh position={[0, -0.12, 0]}>
         <cylinderGeometry args={[JAR_R + 0.14, JAR_R + 0.1, 0.24, 64]} />
-        <meshToonMaterial color="#A9DDF5" gradientMap={ramp} />
+        <meshToonMaterial color={bottom} gradientMap={ramp} />
         <Hull scale={[1.025, 1.3, 1.025]} />
       </mesh>
     </group>
   )
 }
 
-export function Table() {
+export function Table({ color = '#F2B872', shadow = '#B97A3D' }) {
   const ramp = toonRamp()
   return (
     <group position={[0, -0.24, 0]}>
       <mesh position={[0, -0.22, 0]}>
         <cylinderGeometry args={[3.3, 3.15, 0.42, 64]} />
-        <meshToonMaterial color="#F2B872" gradientMap={ramp} />
+        <meshToonMaterial color={color} gradientMap={ramp} />
         <Hull scale={[1.015, 1.25, 1.015]} />
       </mesh>
       {/* cartoon shadow */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0.25, 0.005, 0.2]}>
         <circleGeometry args={[1.85, 48]} />
-        <meshBasicMaterial color="#B97A3D" transparent opacity={0.55} />
+        <meshBasicMaterial color={shadow} transparent opacity={0.55} />
       </mesh>
     </group>
   )

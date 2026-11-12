@@ -1,58 +1,12 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { Physics } from '@react-three/rapier'
 import * as THREE from 'three'
 import { JarColliders, JarGlass, JarLid, Table } from './Jar.jsx'
 import { Coins } from './Coins.jsx'
-import { refreshTexturesWhenFontsReady, toonRamp } from './materials.js'
-
-// Oak leaves falling in the background
-function Leaves() {
-  const ramp = toonRamp()
-  const shape = useMemo(() => {
-    const s = new THREE.Shape()
-    s.moveTo(0, -0.5)
-    s.bezierCurveTo(0.35, -0.3, 0.2, -0.1, 0.38, 0.05)
-    s.bezierCurveTo(0.2, 0.15, 0.32, 0.3, 0.18, 0.45)
-    s.bezierCurveTo(0.08, 0.4, 0.05, 0.5, 0, 0.6)
-    s.bezierCurveTo(-0.05, 0.5, -0.08, 0.4, -0.18, 0.45)
-    s.bezierCurveTo(-0.32, 0.3, -0.2, 0.15, -0.38, 0.05)
-    s.bezierCurveTo(-0.2, -0.1, -0.35, -0.3, 0, -0.5)
-    return s
-  }, [])
-  const leaves = useMemo(
-    () =>
-      Array.from({ length: 9 }, (_, i) => ({
-        x: (i - 4) * 1.9 + Math.random(),
-        z: -3 - Math.random() * 3,
-        y: Math.random() * 10,
-        speed: 0.35 + Math.random() * 0.4,
-        sway: Math.random() * 6,
-        color: ['#E9853A', '#F5A524', '#C9572B', '#9BBF4E'][i % 4],
-        s: 0.7 + Math.random() * 0.6,
-      })),
-    [],
-  )
-  const refs = useRef([])
-  useFrame((state, dt) => {
-    const t = state.clock.elapsedTime
-    leaves.forEach((l, i) => {
-      const m = refs.current[i]
-      if (!m) return
-      l.y -= dt * l.speed
-      if (l.y < -2) l.y = 9
-      m.position.set(l.x + Math.sin(t * 0.8 + l.sway) * 0.6, l.y, l.z)
-      m.rotation.set(Math.sin(t + l.sway) * 0.6, t * 0.3 + l.sway, Math.cos(t * 0.7 + l.sway) * 0.8)
-    })
-  })
-  return leaves.map((l, i) => (
-    <mesh key={i} ref={(m) => (refs.current[i] = m)} scale={l.s}>
-      <shapeGeometry args={[shape]} />
-      <meshToonMaterial color={l.color} gradientMap={ramp} side={THREE.DoubleSide} />
-    </mesh>
-  ))
-}
+import { Particles } from './Particles.jsx'
+import { refreshTexturesWhenFontsReady } from './materials.js'
 
 function useLidOpen(fx) {
   const [open, setOpen] = useState(false)
@@ -94,7 +48,7 @@ function ReadySignal({ onReady }) {
   return null
 }
 
-export default function Scene({ proofs, fx, amountOf, onPoke, onStage }) {
+export default function Scene({ proofs, fx, amountOf, onPoke, onStage, theme, jar }) {
   const open = useLidOpen(fx)
   const controls = useRef()
   useEffect(refreshTexturesWhenFontsReady, [])
@@ -106,10 +60,10 @@ export default function Scene({ proofs, fx, amountOf, onPoke, onStage }) {
       onCreated={() => onStage?.('physics')}
     >
       <Framing controls={controls} />
-      <ambientLight intensity={1.4} />
-      <directionalLight position={[4, 8, 5]} intensity={2.2} />
-      <directionalLight position={[-5, 3, -2]} intensity={0.6} color="#FFD9A8" />
-      <Leaves />
+      <ambientLight intensity={theme?.light.ambient ?? 1.4} />
+      <directionalLight position={[4, 8, 5]} intensity={theme?.light.key ?? 2.2} />
+      <directionalLight position={[-5, 3, -2]} intensity={0.6} color={theme?.light.fill ?? '#FFD9A8'} />
+      <Particles kind={theme?.particles} />
       <Suspense fallback={null}>
         <Physics gravity={[0, -14, 0]} timeStep={1 / 60} interpolate>
           <JarColliders />
@@ -117,9 +71,9 @@ export default function Scene({ proofs, fx, amountOf, onPoke, onStage }) {
           <ReadySignal onReady={() => onStage?.('ready')} />
         </Physics>
       </Suspense>
-      <JarGlass onPoke={onPoke} />
-      <JarLid open={open} />
-      <Table />
+      <JarGlass onPoke={onPoke} {...jar} />
+      <JarLid open={open} style={jar?.id} />
+      <Table color={theme?.table} shadow={theme?.shadow} />
       <OrbitControls
         ref={controls}
         enablePan={false}

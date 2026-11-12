@@ -14,10 +14,22 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Bellota" />
+    <script>
+      // Apply the saved theme before the first paint (no flash of the wrong background).
+      try {
+        var t = JSON.parse(localStorage.getItem('bellota:look') || '{}').theme
+        if (t) document.documentElement.dataset.theme = t
+      } catch (e) {}
+    </script>
     <style>
       /* Jar loader: shown from the very first paint (before any JS/CSS loads)
          and kept by React until the 3D scene has drawn its first frame. */
-      html, body { background: #ffe9c7; }
+      html, body { background: #fff4e0; }
+      html[data-theme='night'], html[data-theme='night'] body { background: #181e3d; }
+      html[data-theme='snow'], html[data-theme='snow'] body { background: #e8f1fc; }
+      html[data-theme='orange'], html[data-theme='orange'] body { background: #ffa53d; }
+      html[data-theme='autumn'], html[data-theme='autumn'] body { background: #ffe9c7; }
+      html[data-theme='night'] .jar-loader { color: #fff4e0; }
       .jar-loader {
         position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 18px;
         color: #2b1d14; font: 600 1.05rem 'Fredoka', 'Space Grotesk', system-ui, sans-serif;

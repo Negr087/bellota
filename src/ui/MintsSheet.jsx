@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl, useInstall } from './kit.jsx'
-import { SUGGESTED_MINTS, FORCE_DEMO } from '../lib/useWallet.js'
+import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl } from './kit.jsx'
+import { SUGGESTED_MINTS } from '../lib/useWallet.js'
 import { sumOf } from '../lib/cashu.js'
 
-export default function MintsSheet({ w, onClose, toast, onSeed, onIntro }) {
+export default function MintsSheet({ w, onClose, toast, onSeed }) {
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [backup, setBackup] = useState(null)
   const { mints, proofs, active } = w.state
-  const app = useInstall()
 
   const add = async (u) => {
     setBusy(true)
@@ -26,7 +25,7 @@ export default function MintsSheet({ w, onClose, toast, onSeed, onIntro }) {
   }
 
   return (
-    <Sheet title="Mints & settings" emoji="🏦" onClose={onClose}>
+    <Sheet title="Mints & backup" emoji="🏦" onClose={onClose}>
       <div className="stack">
         <p className="hint">
           A <b>mint</b> issues the ecash: it holds the sats and signs your acorns. Pick which one to use; each one is its own jar.
@@ -82,38 +81,6 @@ export default function MintsSheet({ w, onClose, toast, onSeed, onIntro }) {
           </>
         )}
         {err && <p className="error">{err}</p>}
-
-        <h3>App</h3>
-        <button className="btn ghost" onClick={onIntro}>
-          🌰 How it works
-        </button>
-        {(app.canInstall || app.ios) && (
-          <>
-            {app.canInstall ? (
-              <button className="btn primary" onClick={app.install}>
-                📲 Install Bellota
-              </button>
-            ) : (
-              <p className="hint">
-                📲 To install: tap <b>Share</b> in Safari, then <b>Add to Home Screen</b>.
-              </p>
-            )}
-          </>
-        )}
-
-        <h3>Mode</h3>
-        {FORCE_DEMO ? (
-          <p className="hint">This is the demo build: offline, with toy sats. Download the project to use real mints.</p>
-        ) : (
-          <div className="seg">
-            <button className={w.mode === 'real' ? 'on' : ''} onClick={() => w.setMode('real')}>
-              Real mints
-            </button>
-            <button className={w.mode === 'demo' ? 'on' : ''} onClick={() => w.setMode('demo')}>
-              Demo (toy sats)
-            </button>
-          </div>
-        )}
 
         <h3>Backup</h3>
         {w.backend.seed && (
