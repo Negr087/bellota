@@ -107,7 +107,7 @@ function EcashIn({ w, onDone, initial = '' }) {
   const fromEmoji = info && classify(token).emoji
   const [dragging, setDragging] = useState(false)
 
-  // GIF / image → token (hidden GIF comment first, then the QR code in the picture)
+  // Image (screenshot, photo) → token, read from the QR code in it
   const fromImage = async (file) => {
     setErr('')
     setBusy(true)
@@ -126,11 +126,11 @@ function EcashIn({ w, onDone, initial = '' }) {
   return (
     <div className="stack">
       <p className="hint">
-        Paste a Cashu token (<code>cashuA…</code>/<code>cashuB…</code>) or an emoji with a token inside 🥜, or open a token GIF or screenshot.
+        Paste a Cashu token (<code>cashuA…</code>/<code>cashuB…</code>) or an emoji with a token inside 🥜. You can also open a screenshot of a token QR.
       </p>
       <textarea
         className={`token-area${dragging ? ' dragging' : ''}`}
-        placeholder="cashuB…  or  🥜  or drop a GIF here"
+        placeholder="cashuB…  or  🥜"
         value={token}
         onChange={(e) => setToken(e.target.value)}
         onPaste={(e) => {
@@ -167,7 +167,7 @@ function EcashIn({ w, onDone, initial = '' }) {
         onWrong={(r) => setErr(r.kind === 'invoice' ? 'That is a Lightning invoice: to pay it, go to Send → Pay Lightning.' : "That QR isn't a Cashu token.")}
       />
       <label className="btn ghost scan-btn file-btn">
-        🖼️ Open GIF / image
+        🖼️ Open image (QR)
         <input
           type="file"
           accept="image/*"

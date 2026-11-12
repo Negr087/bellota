@@ -11,11 +11,11 @@ function EcashOut({ w, toast }) {
   const [err, setErr] = useState('')
   const n = Number(amount)
 
-  if (token) return <ShareToken token={token} amount={n} memo={memo.trim() || undefined} />
+  if (token) return <ShareToken token={token} amount={n} />
 
   return (
     <div className="stack">
-      <p className="hint">Take acorns out of the jar and turn them into a token you can send as text, a QR code, an emoji or a GIF.</p>
+      <p className="hint">Take acorns out of the jar and turn them into a token you can send as text, a QR code or an emoji.</p>
       <AmountInput value={amount} onChange={setAmount} max={w.balance} />
       <input className="text-in" placeholder="Note (optional)" value={memo} maxLength={80} onChange={(e) => setMemo(e.target.value)} />
       {err && <p className="error">{err}</p>}

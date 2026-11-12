@@ -460,7 +460,7 @@ html[data-theme='night'] .bg::after {
   .ob-card, .ob-coin, .onboard { animation: none; }
 }
 
-/* ---------- share token as emoji / GIF ---------- */
+/* ---------- share token as emoji ---------- */
 .share-fmt { width: 100%; }
 .share-fmt button { padding: 9px 6px; font-size: .9rem; }
 .share-fmt button.on { background: var(--ink); color: var(--cream); }
@@ -470,10 +470,6 @@ html[data-theme='night'] .bg::after {
 }
 .emoji-pick .chip { font-size: 1.35rem; padding: 4px 10px; }
 .emoji-pick .chip.on { background: var(--amber); box-shadow: none; transform: translate(2px, 2px); }
-.gif-token {
-  width: min(280px, 100%); border: var(--b); border-radius: 18px; box-shadow: var(--shadow); background: var(--paper);
-}
-.gif-token.loading { aspect-ratio: 560 / 720; display: grid; place-items: center; font-weight: 600; }
 .small-print { font-size: .78rem; margin: 0; }
 .token-area.dragging { outline: 3px dashed var(--amber); outline-offset: 3px; }
 .file-btn { display: inline-flex; align-items: center; gap: 6px; }
