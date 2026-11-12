@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl } from './kit.jsx'
 import { encodeEmoji } from '../lib/emoji.js'
+import { giftLink } from '../lib/gift.js'
 
 const META = {
   'ln-in': { icon: '⚡', label: 'Received via Lightning', sign: '+' },
@@ -30,6 +31,9 @@ function SentToken({ w, h, toast }) {
       </CopyBtn>
       <CopyBtn text={encodeEmoji(h.token)} className="btn tiny">
         Copy 🥜
+      </CopyBtn>
+      <CopyBtn text={giftLink(h.token)} className="btn tiny">
+        Copy 🎁 link
       </CopyBtn>
       <button
         className="btn tiny ghost"

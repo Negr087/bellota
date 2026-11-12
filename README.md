@@ -21,6 +21,7 @@ Built for the **[Nut November 2026](https://nutnovember.org)** hackathon · #Nut
 | ⚡ → 🌰 **Receive over Lightning** | Creates an invoice (NUT-04), waits for payment and mints the acorns. Pending invoices keep being checked even if you close the app. |
 | 🌰 **Claim ecash** | Paste a `cashuA…`/`cashuB…` token to see the amount, mint and memo before claiming. Unknown mints are flagged and added. |
 | 🌰 → 🎁 **Send ecash** | Builds a token (with an optional note) as text + QR. From your history you can check whether it was claimed (NUT-07) and **reclaim** it if not. |
+| 🎁 **Gift links** | Send sats as a link anyone can open, even without a wallet: they see a gift box with the amount and your note, tap it, and the acorns drop into their brand-new jar. The QR opens straight from a phone camera. The token lives in the URL fragment (`#gift=…`), which browsers never send to a server, and it's wiped from the address bar on open. Already-claimed gifts say so before opening. |
 | 🥜 **Send as an emoji** | Share a token hidden **inside an emoji** (🥜 + invisible Unicode variation selectors, the same scheme as cashu.me, so they interoperate both ways). Bellota claims tokens from a pasted emoji, or from the QR code in a screenshot or photo you open, paste or drop. Hidden, not encrypted. |
 | 🌰 → ⚡ **Pay Lightning** | Quotes the invoice (NUT-05) showing amount + fee reserve, pays, and keeps the change (NUT-08). |
 | 📧 **Lightning Address & LNURL** | Pay `user@domain` (LUD-16) or an `lnurl1…` QR (LUD-01/06): shows what the recipient accepts, supports comments (LUD-12) and **checks the invoice is for the exact amount** before paying. |
@@ -77,6 +78,7 @@ src/
   lib/seed.js        BIP-39 seed and persistent NUT-13 counters
   lib/lnurl.js       Lightning Address / LNURL-pay (bech32 included)
   lib/emoji.js       tokens hidden in an emoji (variation selectors)
+  lib/gift.js        gift links (#gift=<token>)
   lib/imageToken.js  reads a token from the QR code in an image
   lib/parse.js       recognizes tokens, invoices, addresses and bitcoin:/lightning:/cashu: URIs
   three/             jar, coins, physics, toon materials and outlines

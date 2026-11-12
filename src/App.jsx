@@ -12,8 +12,14 @@ import Onboarding, { onboardingDone } from './ui/Onboarding.jsx'
 import SettingsSheet from './ui/SettingsSheet.jsx'
 import { useLook } from './lib/look.js'
 import { cue } from './lib/feedback.js'
+import { takeGiftFromUrl, isDemoToken } from './lib/gift.js'
+import GiftOverlay from './ui/GiftOverlay.jsx'
 
 const Scene = lazy(() => import('./three/Scene.jsx'))
+
+// Read before anything cleans the URL: a gift that arrived in the link opens right away;
+// one remembered from an earlier "Not now" waits behind a pill instead.
+const GIFT_IN_URL = typeof location !== 'undefined' && /[#&]gift=/.test(location.hash)
 
 // If 3D fails (WebGL off, old GPU), the wallet keeps working
 class SceneGuard extends Component {
@@ -107,9 +113,30 @@ export default function App() {
       }
     }
   }, [w.actions, poked])
-  // First visit: a short intro. Not for people arriving via a ?scan= link, nor for wallets already in use.
+  // 🎁 Gift link (#gift=<token>): read once on load, and again if a new link opens in this tab
+  const [gift, setGift] = useState(() => takeGiftFromUrl())
+  const [giftOpen, setGiftOpen] = useState(() => !!gift && GIFT_IN_URL)
+  useEffect(() => {
+    const onHash = () => {
+      if (!/gift=/.test(location.hash)) return
+      const g = takeGiftFromUrl()
+      if (g) {
+        setGift(g)
+        setGiftOpen(true)
+      }
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+  // Demo gifts open in demo mode, real ones in real mode
+  const giftMode = gift ? (isDemoToken(gift) ? 'demo' : 'real') : null
+  useEffect(() => {
+    if (giftMode && giftOpen && !FORCE_DEMO && w.mode !== giftMode) w.setMode(giftMode)
+  }, [giftMode, giftOpen, w])
+
+  // First visit: a short intro. Not for people arriving via a ?scan= or gift link, nor for wallets already in use.
   const [intro, setIntro] = useState(
-    () => !onboardingDone() && !new URLSearchParams(location.search).has('scan') && w.total === 0 && w.state.history.length === 0,
+    () => !onboardingDone() && !gift && !new URLSearchParams(location.search).has('scan') && w.total === 0 && w.state.history.length === 0,
   )
   const [stage, setStage] = useState('code') // code → physics → ready (or failed)
   // Never leave the loader up forever: if the GPU is very slow, show the app anyway.
@@ -235,7 +262,13 @@ export default function App() {
         </div>
       )}
 
-      {!empty && w.backend.seed && !w.backend.seed.backedUp() && (
+      {gift && !giftOpen && (
+        <button className="seed-nag gift-pill" onClick={() => setGiftOpen(true)}>
+          🎁 <span>You have an unopened gift</span> →
+        </button>
+      )}
+
+      {!(gift && !giftOpen) && !empty && w.backend.seed && !w.backend.seed.backedUp() && (
         <button className="seed-nag" onClick={() => setSheet('seed')}>
           🌱 <span>Write down your 12 words so you never lose your sats</span> →
         </button>
@@ -281,6 +314,26 @@ export default function App() {
           onClose={close}
           toast={toast}
           onSeed={() => setSheet('seed')}
+        />
+      )}
+      {gift && giftOpen && (FORCE_DEMO || w.mode === giftMode) && (
+        <GiftOverlay
+          key={gift + w.mode}
+          w={w}
+          token={gift}
+          onDone={(amount) => {
+            setGift(null)
+            setGiftOpen(false)
+            toast(`🎁 +${fmtSats(amount)} sats. Enjoy!`)
+          }}
+          onLater={() => {
+            setGiftOpen(false)
+            setGift(takeGiftFromUrl()) // null if it turned out to be already spent
+          }}
+          onIntro={() => {
+            setGiftOpen(false)
+            setIntro(true)
+          }}
         />
       )}
       {intro && <Onboarding w={w} forceDemo={FORCE_DEMO} onClose={() => setIntro(false)} />}
