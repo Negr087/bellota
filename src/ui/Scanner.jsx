@@ -8,6 +8,8 @@ export default function Scanner({ onResult, onClose, hint = 'Point at a Cashu or
   const scannerRef = useRef(null)
   const [err, setErr] = useState('')
   const [torch, setTorch] = useState(null) // null = no torch; true/false = state
+  const [progress, setProgress] = useState(null) // animated QR: share of frames collected
+  const ur = useRef(null)
 
   useEffect(() => {
     let scanner
@@ -20,8 +22,16 @@ export default function Scanner({ onResult, onClose, hint = 'Point at a Cashu or
         if (!alive) return
         scanner = new QrScanner(
           video.current,
-          (r) => {
+          async (r) => {
             if (done.current || !r?.data) return
+            // A frame of an animated QR: keep scanning until the whole token is rebuilt
+            if (/^ur:/i.test(r.data.trim())) {
+              if (!ur.current) ur.current = (await import('../lib/animqr.js')).makeDecoder()
+              const text = ur.current.add(r.data)
+              if (!text) return setProgress(ur.current.progress())
+              if (done.current) return
+              r = { data: text }
+            }
             done.current = true
             navigator.vibrate?.(40)
             scanner.stop()
@@ -66,6 +76,12 @@ export default function Scanner({ onResult, onClose, hint = 'Point at a Cashu or
         </button>
       </div>
       {err && <p className="scan-err">{err}</p>}
+      {progress !== null && (
+        <div className="scan-progress" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
+          <span style={{ width: `${Math.max(4, Math.round(progress * 100))}%` }} />
+          <b>🎞️ Animated QR: {Math.round(progress * 100)}%</b>
+        </div>
+      )}
       {torch !== null && (
         <button
           className="btn scan-torch"

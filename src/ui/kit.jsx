@@ -118,6 +118,68 @@ export function QR({ value, label }) {
   return <div className="qr">{src ? <img src={src} alt={label || 'QR code'} /> : <div className="qr-loading" />}</div>
 }
 
+// A token too long for one comfortable QR becomes an animated one (BC-UR frames, like cashu.me):
+// the other wallet keeps scanning until it has every piece. Short ones stay a plain QR.
+const ANIMATE_OVER = 450 // characters
+const qrOpts = { margin: 1, width: 520, errorCorrectionLevel: 'L', color: { dark: '#2B1D14', light: '#FFFDF7' } }
+
+export function TokenQR({ value, label }) {
+  const long = value.length > ANIMATE_OVER
+  const [animated, setAnimated] = useState(long)
+  const [frames, setFrames] = useState(null) // data URLs, shown in a loop
+  const [i, setI] = useState(0)
+  const [speed, setSpeed] = useState(1)
+
+  useEffect(() => {
+    if (!animated) return
+    let alive = true
+    setFrames(null)
+    ;(async () => {
+      const { encodeParts } = await import('../lib/animqr.js')
+      const enc = encodeParts(value)
+      // Fountain frames never repeat exactly; a few laps' worth is plenty for any scanner.
+      const parts = enc.first(Math.min(240, Math.max(enc.count * 3, 20)))
+      const urls = await Promise.all(parts.map((p) => QRCode.toDataURL(p, qrOpts)))
+      if (alive) setFrames(urls)
+    })().catch(() => alive && setAnimated(false))
+    return () => {
+      alive = false
+    }
+  }, [value, animated])
+
+  useEffect(() => {
+    if (!animated || !frames) return
+    const t = setInterval(() => setI((n) => (n + 1) % frames.length), [250, 150, 400][speed - 1] ?? 250)
+    return () => clearInterval(t)
+  }, [animated, frames, speed])
+
+  return (
+    <>
+      {animated ? (
+        <div className="qr">{frames ? <img src={frames[i % frames.length]} alt={`${label || 'QR code'} (animated)`} /> : <div className="qr-loading" />}</div>
+      ) : (
+        <QR value={value} label={label} />
+      )}
+      {long && (
+        <div className="row qr-mode">
+          <button className={`chip${animated ? ' on' : ''}`} onClick={() => setAnimated(true)}>
+            🎞️ Animated
+          </button>
+          <button className={`chip${!animated ? ' on' : ''}`} onClick={() => setAnimated(false)}>
+            ▢ Single
+          </button>
+          {animated && (
+            <button className="chip" onClick={() => setSpeed((s) => (s % 3) + 1)} aria-label="Change speed">
+              {['Normal', 'Fast', 'Slow'][speed - 1]}
+            </button>
+          )}
+        </div>
+      )}
+      {long && animated && <p className="muted center small-print">Long token: keep the other camera pointed until it fills up.</p>}
+    </>
+  )
+}
+
 export function CopyBtn({ text, children = 'Copy', className = 'btn' }) {
   const [ok, setOk] = useState(false)
   return (

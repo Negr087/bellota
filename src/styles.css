@@ -618,3 +618,14 @@ select.text-in { appearance: auto; }
 /* ↔️ Move between mints */
 .transfer { display: flex; flex-direction: column; gap: 8px; }
 .transfer h3 { margin: 8px 0 0; }
+
+/* 🎞️ Animated QR */
+.qr-mode { justify-content: center; gap: 6px; }
+.qr-mode .chip.on { background: var(--amber); box-shadow: none; transform: translate(2px, 2px); }
+.scan-progress {
+  position: absolute; left: 50%; bottom: calc(max(24px, env(safe-area-inset-bottom)) + 70px); transform: translateX(-50%);
+  width: min(320px, 80vw); height: 30px; border-radius: 99px; overflow: hidden; background: rgba(255, 253, 247, .9); border: 2px solid #2b1d14;
+  display: grid; place-items: center;
+}
+.scan-progress span { position: absolute; left: 0; top: 0; bottom: 0; background: #f2b84b; transition: width .2s; }
+.scan-progress b { position: relative; font-size: .85rem; color: #2b1d14; }

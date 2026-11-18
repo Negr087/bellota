@@ -214,6 +214,7 @@ export default function App() {
     const t = setTimeout(() => {
       import('./ui/Scanner.jsx').catch(() => {})
       import('qr-scanner').catch(() => {})
+      import('./lib/animqr.js').catch(() => {})
     }, 4000)
     return () => clearTimeout(t)
   }, [])

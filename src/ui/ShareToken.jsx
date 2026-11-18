@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CopyBtn, QR, fmtSats } from './kit.jsx'
+import { CopyBtn, QR, TokenQR, fmtSats } from './kit.jsx'
 import { CARRIERS, encodeEmoji } from '../lib/emoji.js'
 import { giftLink } from '../lib/gift.js'
 
@@ -86,7 +86,7 @@ export default function ShareToken({ token, amount, offline }) {
       <p className="big-amount">{fmtSats(amount)} sats</p>
       {fmt === 'text' && (
         <>
-          <QR value={token} label="Cashu token" />
+          <TokenQR value={token} label="Cashu token" />
           <p className="hint center">
             Send this token to anyone (chat, email, Nostr, a scrap of paper…). They can claim it with any Cashu wallet. If nobody claims it, you can reclaim it
             from your history.
