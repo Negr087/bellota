@@ -600,3 +600,21 @@ html[data-theme='night'] .qr { background: #fffdf7; }
 @keyframes gift-wiggle { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-6deg); } 82% { transform: rotate(5deg); } 88% { transform: rotate(-3deg); } }
 .gift-pill { background: var(--grape-l); }
 @media (prefers-reduced-motion: reduce) { .gift-box, .gift-acorn { animation: none; } }
+
+/* 📴 Offline send */
+.offline-box { display: flex; flex-direction: column; gap: 6px; border: 2px dashed var(--ink); border-radius: 14px; padding: 10px 12px; font-size: .85rem; }
+.offline-box.on { border-style: solid; background: var(--warn-bg); }
+.offline-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.offline-toggle input { width: 18px; height: 18px; accent-color: var(--ink); }
+.offline-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.offline-note { margin: 0; font-size: .82rem; background: var(--warn-bg); border: 2px solid var(--ink); border-radius: 12px; padding: 6px 10px; max-width: 380px; }
+.btn.small { padding: 6px 12px; font-size: .85rem; }
+
+/* 📝 Payment requests */
+.request-row { align-items: center; flex-wrap: wrap; gap: 8px; }
+.request-row .muted { flex: 1 1 100%; }
+select.text-in { appearance: auto; }
+
+/* ↔️ Move between mints */
+.transfer { display: flex; flex-direction: column; gap: 8px; }
+.transfer h3 { margin: 8px 0 0; }

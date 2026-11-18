@@ -1,7 +1,70 @@
 import { useEffect, useRef, useState } from 'react'
-import { AmountInput, CopyBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats, shortUrl } from './kit.jsx'
+import { AmountInput, CopyBtn, PasteBtn, QR, ScanBtn, Sheet, Tabs, errMsg, fmtSats, shortUrl } from './kit.jsx'
 import { makeGiftToken } from '../lib/demo.js'
 import { classify } from '../lib/parse.js'
+import { makeRequest } from '../lib/request.js'
+
+// 📝 Payment request (NUT-18): a QR that says "pay me X sats on one of my mints".
+// The payer answers with a token over any channel, so this works over bitchat or offline too.
+function RequestIn({ w, onToken }) {
+  const [amount, setAmount] = useState('')
+  const [desc, setDesc] = useState('')
+  const [req, setReq] = useState(null)
+  const [err, setErr] = useState('')
+  const mints = w.state.mints.map((m) => m.url)
+  const n = Number(amount)
+
+  if (req)
+    return (
+      <div className="stack center">
+        <QR value={req.code} label="Payment request" />
+        <p className="big-amount">{req.amount ? `${fmtSats(req.amount)} sats` : 'Any amount'}</p>
+        {req.desc && <p className="memo">“{req.desc}”</p>}
+        <p className="hint center">
+          Show this QR or send it in any chat. Their wallet pays it with a Cashu token: when it comes back, paste or scan it here.
+        </p>
+        <div className="row">
+          <CopyBtn text={req.code} className="btn primary">
+            Copy request 📋
+          </CopyBtn>
+          {navigator.share && (
+            <button className="btn ghost" onClick={() => navigator.share({ text: req.code }).catch(() => {})}>
+              Share
+            </button>
+          )}
+        </div>
+        <code className="mono-clip">{req.code}</code>
+        <div className="row">
+          <PasteBtn label="📋 Paste their token" accept="token" onPaste={onToken} onWrong={() => setErr("The clipboard doesn't have a Cashu token yet.")} />
+          <ScanBtn accept="token" hint="Point at their token QR" onScan={onToken} onWrong={() => setErr("That QR isn't a Cashu token.")} />
+        </div>
+        {err && <p className="error">{err}</p>}
+      </div>
+    )
+
+  return (
+    <div className="stack">
+      <p className="hint">
+        Ask for a payment: anyone with a Cashu wallet scans it and pays you in ecash on one of your mints ({mints.map(shortUrl).join(', ')}).
+      </p>
+      <AmountInput value={amount} onChange={setAmount} />
+      <input className="text-in" placeholder="What is it for? (optional)" value={desc} maxLength={80} onChange={(e) => setDesc(e.target.value)} />
+      {err && <p className="error">{err}</p>}
+      <button
+        className="btn primary xl"
+        onClick={() => {
+          try {
+            setReq({ code: makeRequest({ amount: n || undefined, description: desc.trim(), mints }), amount: n, desc: desc.trim() })
+          } catch (e) {
+            setErr(errMsg(e))
+          }
+        }}
+      >
+        {n ? `Request ${fmtSats(n)} sats 📝` : 'Request any amount 📝'}
+      </button>
+    </div>
+  )
+}
 
 // tiny helper kept here so the image reader itself can stay lazy-loaded
 const imageFrom = (dt) => [...(dt?.files || [])].find((f) => /^image\//.test(f.type))
@@ -157,6 +220,14 @@ function EcashIn({ w, onDone, initial = '' }) {
         rows={4}
       />
       {fromEmoji && <p className="muted">🥜 Found a token hidden in the emoji.</p>}
+      <PasteBtn
+        accept="token"
+        onPaste={(v) => {
+          setErr('')
+          setToken(v)
+        }}
+        onWrong={(r) => setErr(r.kind === 'denied' ? 'Paste it into the box above.' : "The clipboard doesn't have a Cashu token.")}
+      />
       <ScanBtn
         accept="token"
         hint="Point at the Cashu token QR"
@@ -218,6 +289,7 @@ function EcashIn({ w, onDone, initial = '' }) {
 
 export default function ReceiveSheet({ w, onClose, toast, initialToken }) {
   const [tab, setTab] = useState(initialToken ? 'ecash' : 'ln')
+  const [got, setGot] = useState(initialToken) // a token pasted on the request screen
   const done = (msg) => {
     toast(msg)
     onClose()
@@ -230,9 +302,20 @@ export default function ReceiveSheet({ w, onClose, toast, initialToken }) {
         options={[
           { value: 'ln', label: '⚡ Lightning' },
           { value: 'ecash', label: '🌰 Ecash' },
+          { value: 'req', label: '📝 Request' },
         ]}
       />
-      {tab === 'ln' ? <LightningIn w={w} onDone={done} /> : <EcashIn w={w} onDone={done} initial={initialToken} />}
+      {tab === 'ln' && <LightningIn w={w} onDone={done} />}
+      {tab === 'ecash' && <EcashIn key={got || ''} w={w} onDone={done} initial={got} />}
+      {tab === 'req' && (
+        <RequestIn
+          w={w}
+          onToken={(t) => {
+            setGot(t)
+            setTab('ecash')
+          }}
+        />
+      )}
     </Sheet>
   )
 }

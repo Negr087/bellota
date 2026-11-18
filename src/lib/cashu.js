@@ -17,22 +17,96 @@ export const sumOf = (proofs) => proofs.reduce((s, p) => s + amountOf(p.amount),
 
 const wallets = new Map()
 
+// With a seed, every secret is deterministic (NUT-13) and can be restored.
+const newWallet = (mintUrl) => {
+  const seed = seedStore.seedBytes()
+  return new Wallet(mintUrl, seed ? { bip39seed: seed, counterSource } : {}) // unit: sat
+}
+
+// The mint's info and keys, saved after every successful connection: offline, that's
+// all a wallet needs to pick coins and build a token without talking to the mint.
+const cacheKey = (url) => `bellota:real:mintcache:${url}`
+function saveMintCache(url, w) {
+  try {
+    localStorage.setItem(cacheKey(url), JSON.stringify({ info: w.getMintInfo().cache, keys: w.keyChain.cache }))
+  } catch {
+    /* no storage / quota: offline sends just won't be available for this mint */
+  }
+}
+
 async function getWallet(mintUrl) {
   if (!wallets.has(mintUrl)) {
-    // With a seed, every secret is deterministic (NUT-13) and can be restored.
-    const seed = seedStore.seedBytes()
-    const w = new Wallet(mintUrl, seed ? { bip39seed: seed, counterSource } : {}) // unit: sat
+    const w = newWallet(mintUrl)
     wallets.set(
       mintUrl,
-      w.loadMint().then(() => w),
+      w.loadMint().then(() => {
+        saveMintCache(mintUrl, w)
+        return w
+      }),
     )
   }
   try {
     return await wallets.get(mintUrl)
   } catch (e) {
     wallets.delete(mintUrl)
-    throw new Error(`Couldn't connect to the mint (${mintUrl}). ${e?.message ?? ''}`)
+    const err = new Error(`Couldn't connect to the mint (${mintUrl}). ${e?.message ?? ''}`)
+    err.unreachable = true // nothing reached the mint: safe to fall back to an offline send
+    throw err
   }
+}
+
+// A wallet built only from the saved cache (no network at all).
+function cachedWallet(mintUrl) {
+  let c = null
+  try {
+    c = JSON.parse(localStorage.getItem(cacheKey(mintUrl)) || 'null')
+  } catch {
+    /* corrupted cache */
+  }
+  if (!c) throw new Error("This mint hasn't been opened online on this device yet, so it can't be used offline.")
+  const w = newWallet(mintUrl)
+  w.loadMintFromCache(c.info, c.keys)
+  return w
+}
+
+// Picks coins that add up to exactly `amount` (+ the fee the receiver pays to swap them).
+// No outputs are created, so nothing needs the mint. Returns null if no combination fits.
+function pickExact(w, amount, proofs) {
+  if (amount <= 0 || sumOf(proofs) < amount) return null
+  try {
+    const { keep, send } = w.sendOffline(amount, proofs, { includeFees: true, exactMatch: true })
+    return send.length ? { keep, send } : null
+  } catch {
+    return null
+  }
+}
+
+// Coin split that can pay many amounts without change: two of each power of two
+// (1, 1, 2, 2, 4, 4…) while it fits, the rest in the usual binary split.
+export function pocketDenominations(total) {
+  const out = []
+  let left = total
+  for (let d = 1; d * 2 <= left; d *= 2) {
+    out.push(d, d)
+    left -= 2 * d
+  }
+  for (let d = 2 ** 30; d >= 1; d /= 2) {
+    while (left >= d) {
+      out.push(d)
+      left -= d
+    }
+  }
+  return out.sort((a, b) => a - b)
+}
+
+// Largest N such that every amount 1..N can be made exactly from these coins (ignoring fees).
+export function exactCoverage(proofs) {
+  let reach = 0
+  for (const a of proofs.map((p) => amountOf(p.amount)).sort((x, y) => x - y)) {
+    if (a > reach + 1) break
+    reach += a
+  }
+  return reach
 }
 
 export const realBackend = {
@@ -112,6 +186,50 @@ export const realBackend = {
     return w.decodeToken(token).proofs.map((p) => p.secret)
   },
 
+  // 📴 Offline send: hands over existing coins as they are, no mint involved.
+  sendOffline(mintUrl, amount, proofs, memo) {
+    const picked = pickExact(cachedWallet(mintUrl), amount, proofs)
+    if (!picked) throw new Error(`Offline you can only send amounts your coins add up to exactly. ${amount} sats doesn't fit.`)
+    const token = getEncodedToken({ mint: mintUrl, proofs: picked.send, unit: 'sat', ...(memo ? { memo } : {}) })
+    return { keep: picked.keep, send: picked.send, token }
+  },
+
+  // What can be sent offline around `amount`: { ok, below, above } (closest exact amounts).
+  offlineOptions(mintUrl, amount, proofs) {
+    let w
+    try {
+      w = cachedWallet(mintUrl)
+    } catch {
+      return { ok: false, below: null, above: null, noCache: true }
+    }
+    const fits = (n) => !!pickExact(w, n, proofs)
+    if (fits(amount)) return { ok: true }
+    const total = sumOf(proofs)
+    let below = null
+    let above = null
+    for (let n = amount - 1, i = 0; n > 0 && i < 400; n--, i++) if (fits(n)) { below = n; break }
+    for (let n = amount + 1, i = 0; n <= total && i < 400; n++, i++) if (fits(n)) { above = n; break }
+    return { ok: false, below, above }
+  },
+
+  // Re-splits a mint's coins into a "pocket" (see pocketDenominations) so most small
+  // amounts can be sent offline. Costs the mint's input fee, if it charges one.
+  async preparePocket(mintUrl, proofs) {
+    const w = await getWallet(mintUrl)
+    const fee = amountOf(w.getFeesForProofs(proofs))
+    const amount = sumOf(proofs) - fee
+    if (amount <= 0) throw new Error('Not enough balance to cover the mint fee')
+    const det = seedStore.seedBytes() ? { type: 'deterministic', counter: 0 } : { type: 'random' }
+    const { keep, send } = await w.send(amount, proofs, { includeFees: false }, { send: { ...det, denominations: pocketDenominations(amount) }, keep: det })
+    return { proofs: [...keep, ...send], fee }
+  },
+
+  // Input fee the mint charges to spend these proofs.
+  async inputFee(mintUrl, proofs) {
+    const w = await getWallet(mintUrl)
+    return amountOf(w.getFeesForProofs(proofs))
+  },
+
   // Swaps old (pre-seed) proofs for new proofs derived from the seed.
   async reissue(mintUrl, proofs) {
     const w = await getWallet(mintUrl)
@@ -162,11 +280,13 @@ export const realBackend = {
   },
 
   // 🌰 → token  Send ecash
-  async sendEcash(mintUrl, amount, proofs, memo) {
+  // `lock`: P2PK options (NUT-11) when a payment request asks for locked ecash.
+  async sendEcash(mintUrl, amount, proofs, memo, lock) {
     const w = await getWallet(mintUrl)
     // The proofs I hand over get random secrets: a seed scan (restore or sync on another
     // device) must never find them and count them as balance. The token stays in History.
-    const outputs = seedStore.seedBytes() ? { send: { type: 'random' }, keep: { type: 'deterministic', counter: 0 } } : undefined
+    const sendOut = lock ? { type: 'p2pk', options: lock } : { type: 'random' }
+    const outputs = seedStore.seedBytes() ? { send: sendOut, keep: { type: 'deterministic', counter: 0 } } : lock ? { send: sendOut } : undefined
     const { keep, send } = await w.send(amount, proofs, { includeFees: true }, outputs)
     const token = getEncodedToken({ mint: mintUrl, proofs: send, unit: 'sat', ...(memo ? { memo } : {}) })
     return { keep, send, token }

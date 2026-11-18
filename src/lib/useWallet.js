@@ -3,6 +3,7 @@ import { realBackend, amountOf, sumOf } from './cashu.js'
 import { demoBackend, DEMO_MINT } from './demo.js'
 import { resolvePayTarget, requestInvoice } from './lnurl.js'
 import { classify } from './parse.js'
+import { postPayment } from './request.js'
 
 /* global __FORCE_DEMO__ */
 export const FORCE_DEMO = typeof __FORCE_DEMO__ !== 'undefined' && __FORCE_DEMO__
@@ -181,8 +182,7 @@ export function useWallet() {
         }),
 
       // ⚡ → 🌰
-      async createInvoice(amount) {
-        const mint = ref.current.active
+      async createInvoice(amount, mint = ref.current.active) {
         const inv = await backend.createInvoice(mint, amount)
         commit((s) => ({ ...s, pending: [{ ...inv, mint, ts: Date.now() }, ...s.pending] }))
         return { ...inv, mint }
@@ -233,15 +233,47 @@ export function useWallet() {
         return sumOf(proofs)
       },
 
-      // 🌰 → token
-      async sendEcash(amount, memo) {
-        const mint = ref.current.active
+      // 🌰 → token. `offline`: hand over existing coins without asking the mint (exact amounts only).
+      // `lock`: P2PK lock asked by a payment request. Returns { token, send, mint, offline }.
+      async sendEcash(amount, memo, { mint = ref.current.active, offline = false, lock } = {}) {
         const proofs = ref.current.proofs[mint] || []
         if (sumOf(proofs) < amount) throw new Error("You don't have enough acorns on this mint")
-        const { keep, token } = await backend.sendEcash(mint, amount, proofs, memo)
+        if (offline && lock) throw new Error('This request wants locked ecash, which needs the mint: connect to the internet to pay it.')
+        let res
+        if (offline) res = backend.sendOffline(mint, amount, proofs, memo)
+        else res = await backend.sendEcash(mint, amount, proofs, memo, lock)
         fire('toss')
-        commit((s) => addHistory(swapProofs(s, mint, proofs, keep), { type: 'ecash-out', amount, mint, token, memo }))
-        return token
+        commit((s) =>
+          addHistory(swapProofs(s, mint, proofs, res.keep), { type: 'ecash-out', amount, mint, token: res.token, memo, ...(offline ? { offline: true } : {}) }),
+        )
+        return { token: res.token, send: res.send, mint, offline }
+      },
+      // What can go out offline near `amount` on `mint`: { ok, below, above }.
+      offlineOptions: (amount, mint = ref.current.active) =>
+        backend.offlineOptions ? backend.offlineOptions(mint, amount, ref.current.proofs[mint] || []) : { ok: false },
+      // Re-splits the coins so small amounts can be sent offline. Returns the fee paid.
+      async preparePocket(mint = ref.current.active) {
+        const proofs = ref.current.proofs[mint] || []
+        if (!proofs.length) throw new Error('No acorns on this mint yet')
+        const { proofs: fresh, fee } = await backend.preparePocket(mint, proofs)
+        fire('shake')
+        commit((s) => {
+          const next = swapProofs(s, mint, proofs, fresh)
+          return fee ? addHistory(next, { type: 'fee', amount: fee, mint, memo: 'Coins split for offline use' }) : next
+        })
+        return fee
+      },
+
+      // 📝 Pay a NUT-18 request (see request.js). Returns { token, delivered }:
+      // delivered = the payee got it over HTTP; otherwise the token goes back by hand.
+      async payRequest(req, amount, { mint, offline = false } = {}) {
+        if (req.unit !== 'sat') throw new Error(`This request is in ${req.unit}; Bellota only pays sats.`)
+        const memo = req.description ? `Payment: ${req.description}`.slice(0, 80) : undefined
+        const out = await actions.sendEcash(amount, memo, { mint, offline, lock: req.lock })
+        let delivered = false
+        if (req.post && !offline) delivered = await postPayment(req, out.mint, out.send, memo).catch(() => false)
+        if (delivered) commit((s) => ({ ...s, history: s.history.map((h) => (h.token === out.token ? { ...h, delivered: true } : h)) }))
+        return { token: out.token, delivered, mint: out.mint }
       },
       async reclaim(entry) {
         const amt = await actions.receiveToken(entry.token)
@@ -265,8 +297,7 @@ export function useWallet() {
         if (quote.amount !== sats) throw new Error(`The server returned an invoice for ${quote.amount} sats instead of ${sats}. Not paying it.`)
         return { ...quote, to: info.target.startsWith('lnurl') ? info.domain : info.target, memo: comment || undefined }
       },
-      async payInvoice(quote) {
-        const mint = ref.current.active
+      async payInvoice(quote, mint = ref.current.active) {
         const proofs = ref.current.proofs[mint] || []
         if (sumOf(proofs) < quote.amount + quote.fee) throw new Error('Not enough balance (amount + fee reserve)')
         const id = hid()
@@ -309,6 +340,52 @@ export function useWallet() {
           meltsInProgress.delete(id)
         }
       },
+      // ↔️ Move sats between mints: the destination mint issues an invoice, the source mint pays it.
+      // Step 1: quote. Returns { from, to, amount, fee, inv, quote } for the confirmation screen.
+      async quoteTransfer(from, to, amount) {
+        if (from === to) throw new Error('Pick two different mints')
+        const inv = await actions.createInvoice(amount, to)
+        try {
+          const quote = await backend.meltQuote(from, inv.request)
+          if (quote.amount !== amount) throw new Error(`The mint quoted ${quote.amount} sats instead of ${amount}`)
+          return { from, to, amount, fee: quote.fee, inv, quote }
+        } catch (e) {
+          actions.cancelInvoice(inv.quote)
+          throw e
+        }
+      },
+      // Largest amount that fits after the Lightning fee reserve and the mint's input fee.
+      async maxTransfer(from, to) {
+        const proofs = ref.current.proofs[from] || []
+        const bal = sumOf(proofs)
+        const inFee = backend.inputFee ? await backend.inputFee(from, proofs) : 0
+        let amount = bal - inFee
+        for (let i = 0; i < 3 && amount > 0; i++) {
+          const t = await actions.quoteTransfer(from, to, amount)
+          actions.cancelInvoice(t.inv.quote)
+          const over = amount + t.fee + inFee - bal
+          if (over <= 0) return amount
+          amount -= over
+        }
+        if (amount <= 0) throw new Error('Not enough balance to cover the fees')
+        return amount
+      },
+      // Step 2: pay. The destination's invoice is already pending, so it's claimed here and,
+      // if anything gets interrupted, by the background loop.
+      async confirmTransfer(t) {
+        const toName = ref.current.mints.find((m) => m.url === t.to)?.name
+        const st = await actions.payInvoice({ ...t.quote, to: `${toName || new URL(t.to).host} (your mint)` }, t.from)
+        if (st !== 'PAID') return 'PENDING'
+        for (let i = 0; i < 5; i++) {
+          const r = await actions.pollInvoice({ ...t.inv }).catch(() => null)
+          if (r === 'CLAIMED' || r === 'ISSUED') break
+          await new Promise((res) => setTimeout(res, 1200))
+        }
+        commit((s) => ({ ...s, active: t.to }))
+        return 'DONE'
+      },
+      cancelTransfer: (t) => actions.cancelInvoice(t.inv.quote),
+
       // Checks an in-transit payment with the mint and closes it if it's settled.
       async resolveInflight(f) {
         const r = await backend.checkMelt(f.mint, f.quote, f.proofs)

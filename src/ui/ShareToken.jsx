@@ -67,10 +67,15 @@ function EmojiShare({ token }) {
   )
 }
 
-export default function ShareToken({ token, amount }) {
+export default function ShareToken({ token, amount, offline }) {
   const [fmt, setFmt] = useState('text')
   return (
     <div className="stack center">
+      {offline && (
+        <p className="offline-note">
+          📴 Made offline from coins you already had. It's valid right away; the other person claims it whenever they're online.
+        </p>
+      )}
       <div className="seg share-fmt" role="tablist" aria-label="Share as">
         {FORMATS.map((f) => (
           <button key={f.value} role="tab" aria-selected={fmt === f.value} className={fmt === f.value ? 'on' : ''} onClick={() => setFmt(f.value)}>

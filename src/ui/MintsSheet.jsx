@@ -3,7 +3,121 @@ import { CopyBtn, Sheet, errMsg, fmtSats, shortUrl } from './kit.jsx'
 import { SUGGESTED_MINTS } from '../lib/useWallet.js'
 import { sumOf } from '../lib/cashu.js'
 
-export default function MintsSheet({ w, onClose, toast, onSeed }) {
+// ↔️ Move sats from one mint to another over Lightning (the source pays the destination's invoice).
+function Transfer({ w, toast, prefill }) {
+  const { mints, proofs } = w.state
+  const bal = (u) => sumOf(proofs[u] || [])
+  const withBal = mints.filter((m) => bal(m.url) > 0)
+  const [from, setFrom] = useState(() => (prefill ? withBal.filter((m) => m.url !== prefill.to).sort((a, b) => bal(b.url) - bal(a.url))[0]?.url : w.state.active))
+  const [to, setTo] = useState(() => prefill?.to || mints.find((m) => m.url !== w.state.active)?.url)
+  const [amount, setAmount] = useState(prefill?.amount ? String(prefill.amount) : '')
+  const [quote, setQuote] = useState(null)
+  const [busy, setBusy] = useState('')
+  const [err, setErr] = useState('')
+  const n = Number(amount)
+  const name = (u) => mints.find((m) => m.url === u)?.name || shortUrl(u)
+
+  const run = async (label, fn) => {
+    setBusy(label)
+    setErr('')
+    try {
+      await fn()
+    } catch (e) {
+      setErr(errMsg(e))
+    } finally {
+      setBusy('')
+    }
+  }
+  const reset = () => {
+    if (quote) w.actions.cancelTransfer(quote)
+    setQuote(null)
+  }
+
+  return (
+    <div className="transfer">
+      <h3>↔️ Move sats between mints</h3>
+      <p className="hint">The first mint pays a Lightning invoice from the second one. You pay the Lightning fee; whatever's unused comes back.</p>
+      <div className="row">
+        <select className="text-in grow" value={from || ''} disabled={!!quote} onChange={(e) => setFrom(e.target.value)} aria-label="From">
+          {withBal.map((m) => (
+            <option key={m.url} value={m.url}>
+              From {name(m.url)} · {fmtSats(bal(m.url))}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="row">
+        <select className="text-in grow" value={to || ''} disabled={!!quote} onChange={(e) => setTo(e.target.value)} aria-label="To">
+          {mints
+            .filter((m) => m.url !== from)
+            .map((m) => (
+              <option key={m.url} value={m.url}>
+                To {name(m.url)}
+              </option>
+            ))}
+        </select>
+      </div>
+      <div className="row">
+        <input
+          className="text-in grow"
+          inputMode="numeric"
+          placeholder="Amount (sats)"
+          value={amount}
+          disabled={!!quote}
+          onChange={(e) => setAmount(e.target.value.replace(/\D/g, '').slice(0, 9))}
+        />
+        <button
+          className="btn ghost"
+          disabled={!from || !to || !!busy || !!quote}
+          onClick={() => run('max', async () => setAmount(String(await w.actions.maxTransfer(from, to))))}
+        >
+          {busy === 'max' ? '…' : 'Max'}
+        </button>
+      </div>
+      {quote && (
+        <div className="token-card">
+          <b>
+            {fmtSats(quote.amount)} sats: {name(quote.from)} → {name(quote.to)}
+          </b>
+          <div className="muted">+ up to {fmtSats(quote.fee)} sats Lightning fee reserve (the rest comes back)</div>
+          {quote.amount + quote.fee > bal(quote.from) && <div className="warn">Not enough on {name(quote.from)} to cover amount + fee. Try “Max”.</div>}
+        </div>
+      )}
+      {err && <p className="error">{err}</p>}
+      {!quote ? (
+        <button
+          className="btn primary"
+          disabled={!from || !to || !n || n > bal(from) || !!busy}
+          onClick={() => run('quote', async () => setQuote(await w.actions.quoteTransfer(from, to, n)))}
+        >
+          {busy === 'quote' ? 'Getting quote…' : n > bal(from || '') ? 'Not enough balance' : 'Get quote'}
+        </button>
+      ) : (
+        <div className="row">
+          <button
+            className="btn primary grow"
+            disabled={!!busy || quote.amount + quote.fee > bal(quote.from)}
+            onClick={() =>
+              run('pay', async () => {
+                const r = await w.actions.confirmTransfer(quote)
+                setQuote(null)
+                setAmount('')
+                toast(r === 'DONE' ? `↔️ Moved ${fmtSats(quote.amount)} sats to ${name(quote.to)}` : '⏳ Transfer in progress: check your history')
+              })
+            }
+          >
+            {busy === 'pay' ? 'Moving…' : 'Move ⚡'}
+          </button>
+          <button className="btn ghost" disabled={!!busy} onClick={reset}>
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function MintsSheet({ w, onClose, toast, onSeed, transfer }) {
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -81,6 +195,8 @@ export default function MintsSheet({ w, onClose, toast, onSeed }) {
           </>
         )}
         {err && <p className="error">{err}</p>}
+
+        {mints.length > 1 && mints.some((m) => sumOf(proofs[m.url] || []) > 0) && <Transfer w={w} toast={toast} prefill={transfer} />}
 
         <h3>Backup</h3>
         {w.backend.seed && (

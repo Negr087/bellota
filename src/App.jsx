@@ -174,6 +174,17 @@ export default function App() {
     }
   }
 
+  // Opens the sheet that fits what was scanned or pasted. Returns false if it's nothing we know.
+  const route = (raw) => {
+    const r = classify(raw)
+    if (r.kind === 'token') setSheet('receive')
+    else if (r.kind === 'invoice' || r.kind === 'address' || r.kind === 'request') setSheet('send')
+    else return false
+    setScanned(r)
+    return true
+  }
+  const [transfer, setTransfer] = useState(null) // prefill for "move sats to the mint a request wants"
+
   // Deep links: ?scan=<token|invoice|address> (also what the web+cashu: protocol handler opens)
   useEffect(() => {
     const q = new URLSearchParams(location.search)
@@ -182,20 +193,35 @@ export default function App() {
     // Drop scan= from the URL by hand (URLSearchParams would turn a bare ?demo into ?demo=)
     const rest = location.search.slice(1).split('&').filter((kv) => kv && !kv.startsWith('scan=')).join('&')
     history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : '') + location.hash)
-    const r = classify(raw)
-    if (r.kind === 'token') {
-      setScanned(r)
-      setSheet('receive')
-    } else if (r.kind === 'invoice' || r.kind === 'address') {
-      setScanned(r)
-      setSheet('send')
-    }
+    route(raw)
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Paste anywhere on the main screen (Ctrl+V on desktop): a token, invoice or request opens the right sheet.
+  useEffect(() => {
+    const onPaste = (e) => {
+      if (sheet || e.target.closest?.('input, textarea, [contenteditable]')) return
+      const text = e.clipboardData?.getData('text')
+      if (text && route(text)) e.preventDefault()
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet])
+
+  // Fetch the lazy chunks once while online, so the scanner also opens offline.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import('./ui/Scanner.jsx').catch(() => {})
+      import('qr-scanner').catch(() => {})
+    }, 4000)
+    return () => clearTimeout(t)
   }, [])
 
   const close = useCallback(() => {
     setSheet(null)
     setScanned(null)
+    setTransfer(null)
   }, [])
   const empty = w.activeProofs.length === 0
   const mintCount = Object.values(w.state.proofs).filter((p) => p.length).length
@@ -315,20 +341,31 @@ export default function App() {
       </nav>
 
       {sheet === 'receive' && <ReceiveSheet w={w} onClose={close} toast={toast} initialToken={scanned?.kind === 'token' ? scanned.value : undefined} />}
-      {sheet === 'send' && <SendSheet w={w} onClose={close} toast={toast} initialInvoice={scanned?.kind === 'invoice' || scanned?.kind === 'address' ? scanned.value : undefined} />}
+      {sheet === 'send' && (
+        <SendSheet
+          w={w}
+          onClose={close}
+          toast={toast}
+          initialInvoice={scanned?.kind === 'invoice' || scanned?.kind === 'address' ? scanned.value : undefined}
+          initialRequest={scanned?.kind === 'request' ? scanned.value : undefined}
+          onMove={async (to, amount) => {
+            try {
+              await w.actions.addMint(to)
+              setTransfer({ to, amount })
+              setScanned(null)
+              setSheet('mints')
+            } catch (e) {
+              toast(errMsg(e), 'err')
+            }
+          }}
+        />
+      )}
       <ScanOverlay
         open={scanning}
         onClose={() => setScanning(false)}
         onResult={(raw) => {
           setScanning(false)
-          const r = classify(raw)
-          if (r.kind === 'token') {
-            setScanned(r)
-            setSheet('receive')
-          } else if (r.kind === 'invoice' || r.kind === 'address') {
-            setScanned(r)
-            setSheet('send')
-          } else toast("That QR isn't a Cashu token, an invoice or a Lightning Address", 'err')
+          if (!route(raw)) toast("That QR isn't a Cashu token, payment request, invoice or Lightning Address", 'err')
         }}
       />
       {sheet === 'mints' && (
@@ -337,6 +374,7 @@ export default function App() {
           onClose={close}
           toast={toast}
           onSeed={() => setSheet('seed')}
+          transfer={transfer}
         />
       )}
       {gift && giftOpen && (FORCE_DEMO || w.mode === giftMode) && (

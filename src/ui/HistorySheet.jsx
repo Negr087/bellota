@@ -9,6 +9,7 @@ const META = {
   restore: { icon: '🌱', label: 'Restored from seed', sign: '+' },
   'ecash-out': { icon: '🎁', label: 'Sent ecash', sign: '−' },
   'ln-out': { icon: '⚡', label: 'Paid via Lightning', sign: '−' },
+  fee: { icon: '🪙', label: 'Mint fee', sign: '−' },
   'sync-in': { icon: '🔄', label: 'Received on another device', sign: '+' },
   'sync-out': { icon: '🔄', label: 'Spent on another device', sign: '−' },
 }
@@ -102,6 +103,8 @@ export default function HistorySheet({ w, onClose, toast }) {
                   <small>
                     {when(h.ts)} · {shortUrl(h.mint)}
                     {h.fee ? ` · fee ${fmtSats(h.fee)}` : ''}
+                    {h.offline ? ' · 📴 offline' : ''}
+                    {h.delivered ? ' · ✓ delivered' : ''}
                     {h.pending ? ' · ⏳ awaiting confirmation' : ''}
                     {h.failed ? ' · ❌ failed, acorns returned' : ''}
                   </small>

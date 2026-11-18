@@ -37,6 +37,30 @@ export function ScanBtn({ onScan, accept, hint, onWrong }) {
   )
 }
 
+// 📋 button that reads the clipboard (e.g. a token copied from bitchat or any chat).
+export function PasteBtn({ onPaste, accept, onWrong, label = '📋 Paste' }) {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return null
+  return (
+    <button
+      type="button"
+      className="btn ghost scan-btn"
+      onClick={async () => {
+        let text = ''
+        try {
+          text = await navigator.clipboard.readText()
+        } catch {
+          return onWrong?.({ kind: 'denied' })
+        }
+        const r = classify(text)
+        if (accept && ![].concat(accept).includes(r.kind)) onWrong?.(r)
+        else onPaste(r.value)
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
 export function Sheet({ title, emoji, onClose, children }) {
   useEffect(() => {
     const k = (e) => e.key === 'Escape' && onClose()
