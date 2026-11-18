@@ -10,6 +10,7 @@ const K = {
   counters: 'bellota:real:counters',
   backedUp: 'bellota:real:seedBackedUp',
   legacy: 'bellota:real:legacyProofs', // there's balance from before the seed (the seed can't restore it)
+  scanned: 'bellota:real:scanned', // per keyset: counter up to which sync already looked for proofs
 }
 
 const get = (k) => {
@@ -53,6 +54,7 @@ export const seedStore = {
     set(K.mnemonic, newMnemonic())
     set(K.backedUp, null)
     set(K.counters, null)
+    set(K.scanned, null)
     if (hadBalance) set(K.legacy, '1')
     return true
   },
@@ -62,6 +64,7 @@ export const seedStore = {
     if (m === get(K.mnemonic)) return set(K.backedUp, '1') // same seed: leave counters alone
     set(K.mnemonic, m)
     set(K.counters, null)
+    set(K.scanned, null)
     set(K.backedUp, '1') // if they typed it, they have it written down
     set(K.legacy, hadBalance ? '1' : null)
   },
@@ -69,6 +72,25 @@ export const seedStore = {
   markBackedUp: () => set(K.backedUp, '1'),
   legacy: () => get(K.legacy) === '1',
   clearLegacy: () => set(K.legacy, null),
+  // Sync watermark: proofs another device made with this seed live at counters >= scanned[keyset].
+  scanned(keysetId) {
+    try {
+      return JSON.parse(get(K.scanned) || '{}')[keysetId] || 0
+    } catch {
+      return 0
+    }
+  },
+  setScanned(keysetId, n) {
+    let c = {}
+    try {
+      c = JSON.parse(get(K.scanned) || '{}')
+    } catch {
+      /* corrupted: start over */
+    }
+    if ((c[keysetId] || 0) >= n) return
+    c[keysetId] = n
+    set(K.scanned, JSON.stringify(c))
+  },
 }
 
 // Persistent CounterSource. Writes to localStorage BEFORE returning the range,

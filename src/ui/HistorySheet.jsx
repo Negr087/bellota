@@ -9,6 +9,8 @@ const META = {
   restore: { icon: '🌱', label: 'Restored from seed', sign: '+' },
   'ecash-out': { icon: '🎁', label: 'Sent ecash', sign: '−' },
   'ln-out': { icon: '⚡', label: 'Paid via Lightning', sign: '−' },
+  'sync-in': { icon: '🔄', label: 'Received on another device', sign: '+' },
+  'sync-out': { icon: '🔄', label: 'Spent on another device', sign: '−' },
 }
 
 function when(ts) {

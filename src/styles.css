@@ -163,6 +163,12 @@ html[data-theme='night'] .bg::after {
   background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 99px;
   box-shadow: 2px 2px 0 var(--shade); padding: 4px 12px; font-size: .86rem; font-weight: 600; white-space: nowrap;
 }
+.balance .sync-btn {
+  pointer-events: auto; margin-top: 6px; cursor: pointer; font: inherit; font-size: .8rem; font-weight: 700;
+  background: var(--paper); color: var(--ink); border: 2px solid var(--ink); border-radius: 99px;
+  box-shadow: 2px 2px 0 var(--shade); padding: 3px 10px;
+}
+.balance .sync-btn:disabled { opacity: .7; cursor: default; }
 .balance .meta.transit { background: var(--warn-bg); white-space: normal; max-width: 88vw; text-align: center; }
 .bal {
   font-family: var(--display); font-weight: 700; font-size: clamp(2.8rem, 11vw, 4.6rem); line-height: 1;

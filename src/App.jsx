@@ -156,6 +156,24 @@ export default function App() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200)
   }, [])
 
+  const [syncBusy, setSyncBusy] = useState(false)
+  const syncNow = async () => {
+    setSyncBusy(true)
+    try {
+      const r = await w.actions.sync()
+      if (!r) return toast('Already syncing…')
+      const parts = []
+      if (r.added) parts.push(`+${fmtSats(r.added)} sats received elsewhere`)
+      if (r.removed) parts.push(`−${fmtSats(r.removed)} sats spent elsewhere`)
+      if (r.failed) toast(`Couldn't reach ${r.failed} mint${r.failed > 1 ? 's' : ''}`, 'err')
+      toast(parts.length ? `🔄 ${parts.join(' · ')}` : '🔄 Up to date')
+    } catch (e) {
+      toast(errMsg(e), 'err')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
+
   // Deep links: ?scan=<token|invoice|address> (also what the web+cashu: protocol handler opens)
   useEffect(() => {
     const q = new URLSearchParams(location.search)
@@ -231,6 +249,11 @@ export default function App() {
           🌰 {w.activeProofs.length} {w.activeProofs.length === 1 ? 'acorn' : 'acorns'}
           {mintCount > 1 && ` · ${fmtSats(w.total)} sats total in ${mintCount} mints`}
         </span>
+        {!w.backend.isDemo && (
+          <button className="sync-btn" onClick={syncNow} disabled={syncBusy} aria-label="Sync with the mint">
+            {syncBusy ? '⏳ Syncing…' : '🔄 Sync'}
+          </button>
+        )}
         {w.inTransit > 0 && <span className="meta transit">⏳ {fmtSats(w.inTransit)} sats in transit (Lightning payment not confirmed yet)</span>}
       </section>
 

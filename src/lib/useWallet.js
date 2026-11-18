@@ -102,6 +102,8 @@ const unwrapToken = (t) => {
 const normUrl = (u) => u.trim().replace(/\/+$/, '')
 // Payments this tab is still waiting on: the background loop leaves them alone.
 const meltsInProgress = new Set()
+let syncing = false
+const sentSecretsCache = new Map() // token → secrets of its proofs
 
 const hid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 
@@ -140,6 +142,18 @@ export function useWallet() {
 
   const addHistory = (s, entry) => ({ ...s, history: [{ id: hid(), ts: Date.now(), ...entry }, ...s.history] })
   const setProofs = (s, url, ps) => ({ ...s, proofs: { ...s.proofs, [url]: ps } })
+  // Appends proofs, skipping any already there (a sync may have added them first).
+  const addProofs = (s, url, ps) => {
+    const cur = s.proofs[url] || []
+    const have = new Set(cur.map((p) => p.secret))
+    const add = ps.filter((p) => !have.has(p.secret) && have.add(p.secret))
+    return setProofs(s, url, [...cur, ...add])
+  }
+  // Takes out the proofs a swap consumed and puts in the new ones, leaving the rest untouched.
+  const swapProofs = (s, url, used, fresh) => {
+    const gone = new Set(used.map((p) => p.secret))
+    return addProofs(setProofs(s, url, (s.proofs[url] || []).filter((p) => !gone.has(p.secret))), url, fresh)
+  }
 
   const ensureMint = useCallback(
     async (url, { activate = false } = {}) => {
@@ -186,7 +200,7 @@ export function useWallet() {
           const proofs = await backend.claimInvoice(inv.mint, inv.amount, inv.quote)
           fire('pour')
           commit((s) =>
-            addHistory(setProofs(s, inv.mint, [...(s.proofs[inv.mint] || []), ...proofs]), {
+            addHistory(addProofs(s, inv.mint, proofs), {
               type: 'ln-in',
               amount: inv.amount,
               mint: inv.mint,
@@ -209,7 +223,7 @@ export function useWallet() {
         const { proofs } = await backend.receiveToken(token)
         fire('pour')
         commit((s) =>
-          addHistory(setProofs({ ...s, active: mint }, mint, [...(s.proofs[mint] || []), ...proofs]), {
+          addHistory(addProofs({ ...s, active: mint }, mint, proofs), {
             type: 'ecash-in',
             amount: sumOf(proofs),
             mint,
@@ -226,7 +240,7 @@ export function useWallet() {
         if (sumOf(proofs) < amount) throw new Error("You don't have enough acorns on this mint")
         const { keep, token } = await backend.sendEcash(mint, amount, proofs, memo)
         fire('toss')
-        commit((s) => addHistory(setProofs(s, mint, keep), { type: 'ecash-out', amount, mint, token, memo }))
+        commit((s) => addHistory(swapProofs(s, mint, proofs, keep), { type: 'ecash-out', amount, mint, token, memo }))
         return token
       },
       async reclaim(entry) {
@@ -262,7 +276,7 @@ export function useWallet() {
           const res = await backend.payInvoice(mint, quote, proofs, ({ keep, send }) =>
             // Persist BEFORE the melt: the old proofs are worthless after the swap.
             commit((s) => ({
-              ...setProofs(s, mint, keep),
+              ...swapProofs(s, mint, proofs, keep),
               inflight: [
                 { id, mint, quote: quote.raw.quote, amount: quote.amount, fee: quote.fee, proofs: send, ts: Date.now() },
                 ...s.inflight,
@@ -276,7 +290,7 @@ export function useWallet() {
           }
           const fee = quote.fee - sumOf(res.change) // what the network actually kept
           commit((s) =>
-            addHistory(dropInflight(setProofs(s, mint, [...(s.proofs[mint] || []), ...res.change])), {
+            addHistory(dropInflight(addProofs(s, mint, res.change)), {
               type: 'ln-out',
               amount: quote.amount,
               fee: Math.max(0, fee),
@@ -288,7 +302,7 @@ export function useWallet() {
           return 'PAID'
         } catch (e) {
           if (e.recovered)
-            commit((s) => dropInflight(setProofs(s, mint, [...(s.proofs[mint] || []), ...e.recovered])))
+            commit((s) => dropInflight(addProofs(s, mint, e.recovered)))
           else if (e.unknown) e.message += " — We don't know if it went through: the acorns stay in transit until it's confirmed."
           throw e
         } finally {
@@ -308,7 +322,7 @@ export function useWallet() {
               ? { ...next, history: next.history.map((h) => (h.inflightId === f.id ? { ...h, pending: false } : h)) }
               : addHistory(next, { type: 'ln-out', amount: f.amount, mint: f.mint })
           } else {
-            next = setProofs(next, f.mint, [...(next.proofs[f.mint] || []), ...r.unspent])
+            next = addProofs(next, f.mint, r.unspent)
             if (wasLogged) next = { ...next, history: next.history.map((h) => (h.inflightId === f.id ? { ...h, pending: false, failed: true } : h)) }
           }
           return next
@@ -325,6 +339,60 @@ export function useWallet() {
           .map((x) => ({ mint: x.mint, amount: sumOf(x.proofs), token: backend.encodeToken(x.mint, x.proofs) }))
       },
       shake: () => fire('shake'),
+
+      // 🔄 Same seed on several devices: each one keeps its own copy of the proofs.
+      // This asks every mint what's really spendable: drops what another device spent and
+      // picks up what it received. Returns { added, removed, failed } in sats / mint count.
+      async sync() {
+        if (!backend.sync || syncing) return null
+        syncing = true
+        let added = 0
+        let removed = 0
+        let failed = 0
+        try {
+          for (const { url } of ref.current.mints) {
+            if (meltsInProgress.size) break // a payment is mid-swap: try again on the next tick
+            let res
+            try {
+              res = await backend.sync(url, ref.current.proofs[url] || [])
+            } catch {
+              failed++
+              continue
+            }
+            // Tokens this device sent (from before sends used random secrets) aren't balance.
+            const sent = new Set()
+            if (res.found.length) {
+              for (const h of ref.current.history) {
+                if (h.type !== 'ecash-out' || !h.token || h.mint !== url) continue
+                if (!sentSecretsCache.has(h.token)) sentSecretsCache.set(h.token, await backend.tokenSecrets(h.token).catch(() => []))
+                for (const sec of sentSecretsCache.get(h.token)) sent.add(sec)
+              }
+            }
+            let gained = 0
+            let lost = 0
+            commit((s) => {
+              const spent = new Set(res.spent)
+              const cur = s.proofs[url] || []
+              const kept = cur.filter((p) => !spent.has(p.secret))
+              lost = sumOf(cur) - sumOf(kept)
+              const known = new Set([...kept, ...s.inflight.flatMap((f) => f.proofs)].map((p) => p.secret))
+              const fresh = res.found.filter((p) => !known.has(p.secret) && !sent.has(p.secret) && known.add(p.secret))
+              gained = sumOf(fresh)
+              if (!lost && !gained) return s
+              let next = setProofs(s, url, [...kept, ...fresh])
+              if (gained) next = addHistory(next, { type: 'sync-in', amount: gained, mint: url })
+              if (lost) next = addHistory(next, { type: 'sync-out', amount: lost, mint: url })
+              return next
+            })
+            if (gained) fire('pour')
+            added += gained
+            removed += lost
+          }
+        } finally {
+          syncing = false
+        }
+        return { added, removed, failed }
+      },
 
       // 🌱 Seed (NUT-13)
       markBackedUp() {
@@ -349,7 +417,7 @@ export function useWallet() {
             if (amount > 0) {
               fire('pour')
               commit((s) =>
-                addHistory(setProofs({ ...s, active: url }, url, [...(s.proofs[url] || []), ...fresh]), { type: 'restore', amount, mint: url }),
+                addHistory(addProofs({ ...s, active: url }, url, fresh), { type: 'restore', amount, mint: url }),
               )
             }
             results.push({ url, amount })
@@ -415,6 +483,21 @@ export function useWallet() {
       clearInterval(id)
     }
   }, [actions])
+
+  // Keep in step with other devices using the same seed: on open, when the tab comes back, and every minute.
+  useEffect(() => {
+    if (!backend.sync) return
+    const run = () => actions.sync().catch(() => {})
+    const first = setTimeout(run, 1500)
+    const id = setInterval(run, 60_000)
+    const onVisible = () => document.visibilityState === 'visible' && run()
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearTimeout(first)
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [actions, backend])
 
   return { mode, setMode, backend, state, activeProofs, balance, inTransit, total, fx, actions, amountOf }
 }

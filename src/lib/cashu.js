@@ -64,12 +64,52 @@ export const realBackend = {
       onProgress?.({ keyset: ks.id, i, n: keysets.length })
       const { proofs, lastCounterWithSignature } = await w.batchRestore(300, undefined, 0, ks.id)
       // Even if spent, those counters were used: never reuse them.
-      if (lastCounterWithSignature != null) await counterSource.advanceToAtLeast(ks.id, lastCounterWithSignature + 1)
+      if (lastCounterWithSignature != null) {
+        await counterSource.advanceToAtLeast(ks.id, lastCounterWithSignature + 1)
+        seedStore.setScanned(ks.id, lastCounterWithSignature + 1)
+      }
       if (!proofs.length) continue
       const states = await w.checkProofsStates(proofs)
       found.push(...proofs.filter((_, j) => states[j]?.state === 'UNSPENT'))
     }
     return found
+  },
+
+  // Brings this device in line with the mint when the same seed is used elsewhere.
+  // 1) Drops local proofs the mint says are SPENT (spent on another device).
+  // 2) Scans the seed from the last synced counter for proofs another device created,
+  //    keeping the unspent ones, and moves the counters past them so both devices
+  //    don't derive the same outputs.
+  // Returns { spent: secrets[], found: proofs[] }.
+  async sync(mintUrl, proofs) {
+    const w = await getWallet(mintUrl)
+    let spent = []
+    if (proofs.length) {
+      const states = await w.checkProofsStates(proofs)
+      spent = proofs.filter((_, i) => states[i]?.state === 'SPENT').map((p) => p.secret)
+    }
+    const found = []
+    if (seedStore.seedBytes()) {
+      for (const ks of w.keyChain.getKeysets()) {
+        const from = seedStore.scanned(ks.id)
+        const { proofs: ps, lastCounterWithSignature } = await w.batchRestore(100, undefined, from, ks.id)
+        if (lastCounterWithSignature == null) continue
+        await counterSource.advanceToAtLeast(ks.id, lastCounterWithSignature + 1)
+        if (ps.length) {
+          const states = await w.checkProofsStates(ps)
+          found.push(...ps.filter((_, j) => states[j]?.state === 'UNSPENT'))
+        }
+        seedStore.setScanned(ks.id, lastCounterWithSignature + 1)
+      }
+    }
+    return { spent, found }
+  },
+
+  // Secrets of a token's proofs (to tell my own sent tokens apart from found proofs).
+  async tokenSecrets(token) {
+    const meta = getTokenMetadata(token)
+    const w = await getWallet(meta.mint)
+    return w.decodeToken(token).proofs.map((p) => p.secret)
   },
 
   // Swaps old (pre-seed) proofs for new proofs derived from the seed.
@@ -124,7 +164,10 @@ export const realBackend = {
   // 🌰 → token  Send ecash
   async sendEcash(mintUrl, amount, proofs, memo) {
     const w = await getWallet(mintUrl)
-    const { keep, send } = await w.send(amount, proofs, { includeFees: true })
+    // The proofs I hand over get random secrets: a seed scan (restore or sync on another
+    // device) must never find them and count them as balance. The token stays in History.
+    const outputs = seedStore.seedBytes() ? { send: { type: 'random' }, keep: { type: 'deterministic', counter: 0 } } : undefined
+    const { keep, send } = await w.send(amount, proofs, { includeFees: true }, outputs)
     const token = getEncodedToken({ mint: mintUrl, proofs: send, unit: 'sat', ...(memo ? { memo } : {}) })
     return { keep, send, token }
   },
