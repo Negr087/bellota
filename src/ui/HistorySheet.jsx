@@ -105,8 +105,8 @@ export default function HistorySheet({ w, onClose, toast }) {
                     {h.fee ? ` · fee ${fmtSats(h.fee)}` : ''}
                     {h.offline ? ' · 📴 offline' : ''}
                     {h.delivered ? ' · ✓ delivered' : ''}
-                    {h.pending ? ' · ⏳ awaiting confirmation' : ''}
-                    {h.failed ? ' · ❌ failed, acorns returned' : ''}
+                    {h.pending ? (h.parkedId ? ' · 📴 received offline, waiting to claim' : ' · ⏳ awaiting confirmation') : ''}
+                    {h.failed ? (h.type === 'ecash-in' ? ' · ❌ couldn’t claim it (already spent or not yours)' : ' · ❌ failed, acorns returned') : ''}
                   </small>
                   {h.memo && <small className="memo">“{h.memo}”</small>}
                   {h.type === 'ecash-out' && h.token && <SentToken w={w} h={h} toast={toast} />}

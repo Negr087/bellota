@@ -629,3 +629,11 @@ select.text-in { appearance: auto; }
 }
 .scan-progress span { position: absolute; left: 0; top: 0; bottom: 0; background: #f2b84b; transition: width .2s; }
 .scan-progress b { position: relative; font-size: .85rem; color: #2b1d14; }
+
+/* 📴 Offline receive */
+.verdict { display: flex; flex-direction: column; gap: 6px; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 12px; font-size: .88rem; background: var(--paper); }
+.verdict.warn { background: var(--warn-bg); }
+.verdict.ok { background: #d9f2c4; color: #2b1d14; }
+.verdict.bad { background: #ffd6cc; color: #2b1d14; }
+.lock-toggle span { display: flex; flex-direction: column; gap: 2px; }
+.lock-toggle small { opacity: .75; font-size: .8rem; }

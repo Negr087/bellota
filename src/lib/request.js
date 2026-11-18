@@ -6,8 +6,10 @@ import { amountOf } from './cashu.js'
 const rid = () => [...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, '0')).join('')
 
 // No transport: the payer hands the token back over any channel (chat, bitchat, QR…).
-export function makeRequest({ amount, description, mints }) {
-  const req = new PaymentRequest([], rid(), amount || undefined, 'sat', mints, description || undefined, true)
+// `pubkey`: ask the payer to lock the ecash to it (NUT-11), so only this wallet can claim it.
+export function makeRequest({ amount, description, mints, pubkey }) {
+  const lock = pubkey ? { kind: 'P2PK', data: pubkey, tags: [] } : undefined
+  const req = new PaymentRequest([], rid(), amount || undefined, 'sat', mints, description || undefined, true, lock)
   return req.toEncodedCreqA()
 }
 

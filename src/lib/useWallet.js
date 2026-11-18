@@ -43,14 +43,16 @@ function load(mode) {
   const be = mode === 'demo' ? demoBackend : realBackend
   const p = `bellota:${mode}:`
   const defMints = mode === 'demo' ? [{ url: DEMO_MINT, name: 'Toy mint' }] : [{ url: SUGGESTED_MINTS[0].url, name: 'Testnut' }]
-  let mints, proofsRaw, history, pending, inflightRaw
+  let mints, proofsRaw, history, pending, inflightRaw, parked
   try {
     mints = JSON.parse(store.get(p + 'mints', 'null')) || defMints
     proofsRaw = JSON.parse(store.get(p + 'proofs', '{}'))
     history = JSON.parse(store.get(p + 'history', '[]'))
     pending = JSON.parse(store.get(p + 'pending', '[]'))
     inflightRaw = JSON.parse(store.get(p + 'inflight', '[]'))
+    parked = JSON.parse(store.get(p + 'parked', '[]'))
   } catch {
+    parked = []
     mints = defMints
     proofsRaw = {}
     history = []
@@ -78,7 +80,7 @@ function load(mode) {
   // Real mode: if there's no seed yet, create it now (before any wallet is built).
   if (be.seed) be.seed.ensure(Object.values(proofs).some((ps) => ps.length))
   const active = store.get(p + 'active', mints[0]?.url)
-  return { mints, proofs, history, pending, inflight, active: mints.some((m) => m.url === active) ? active : mints[0]?.url }
+  return { mints, proofs, history, pending, inflight, parked, active: mints.some((m) => m.url === active) ? active : mints[0]?.url }
 }
 
 function save(mode, s) {
@@ -91,6 +93,7 @@ function save(mode, s) {
   store.set(p + 'history', JSON.stringify(s.history.slice(0, 200)))
   store.set(p + 'pending', JSON.stringify(s.pending))
   store.set(p + 'inflight', JSON.stringify(s.inflight.map((f) => ({ ...f, proofs: be.serialize(f.proofs) }))))
+  store.set(p + 'parked', JSON.stringify(s.parked))
   store.set(p + 'active', s.active || '')
 }
 
@@ -101,6 +104,10 @@ const unwrapToken = (t) => {
 }
 
 const normUrl = (u) => u.trim().replace(/\/+$/, '')
+const isNetErr = (e) => e?.unreachable || /fetch|network|Failed to|timed? ?out|offline/i.test(e?.message || '')
+// The mint said no for good: spent already, or locked to someone else's key.
+const isFinal = (e) => e?.code === 11001 || /spent|witness|signature|locked|P2PK/i.test(e?.message || '')
+
 // Payments this tab is still waiting on: the background loop leaves them alone.
 const meltsInProgress = new Set()
 let syncing = false
@@ -231,6 +238,39 @@ export function useWallet() {
           }),
         )
         return sumOf(proofs)
+      },
+
+      // 📴 Receiving with no internet: check what can be checked, keep the token, claim it later.
+      checkOffline: (raw) => (backend.checkOffline ? backend.checkOffline(unwrapToken(raw)) : Promise.resolve(null)),
+      parkToken(raw, verdict) {
+        const token = unwrapToken(raw)
+        const info = backend.tokenInfo(token)
+        if (ref.current.parked.some((p) => p.token === token)) throw new Error('That token is already waiting to be claimed')
+        const id = hid()
+        commit((s) =>
+          addHistory(
+            { ...s, parked: [{ id, token, mint: normUrl(info.mint), amount: info.amount, memo: info.memo, ts: Date.now(), verdict }, ...s.parked] },
+            { type: 'ecash-in', amount: info.amount, mint: normUrl(info.mint), memo: info.memo, pending: true, parkedId: id },
+          ),
+        )
+        return info.amount
+      },
+      // Tries to claim a kept token. 'CLAIMED' | 'FAILED' (spent / not ours) | throws on network trouble.
+      async claimParked(p) {
+        if (!ref.current.parked.some((x) => x.id === p.id)) return 'CLAIMED'
+        const markHist = (s, patch) => ({ ...s, history: s.history.map((h) => (h.parkedId === p.id ? { ...h, pending: false, ...patch } : h)) })
+        const drop = (s) => ({ ...s, parked: s.parked.filter((x) => x.id !== p.id) })
+        try {
+          const mint = await ensureMint(p.mint)
+          const { proofs } = await backend.receiveToken(p.token)
+          fire('pour')
+          commit((s) => markHist(drop(addProofs(s, mint, proofs)), { amount: sumOf(proofs) }))
+          return 'CLAIMED'
+        } catch (e) {
+          if (isNetErr(e) || !isFinal(e)) throw e
+          commit((s) => markHist(drop(s), { failed: true, reason: e.message }))
+          return 'FAILED'
+        }
       },
 
       // 🌰 → token. `offline`: hand over existing coins without asking the mint (exact amounts only).
@@ -526,6 +566,7 @@ export function useWallet() {
   const activeProofs = state.proofs[state.active] || []
   const balance = sumOf(activeProofs)
   const total = Object.values(state.proofs).reduce((s, ps) => s + sumOf(ps), 0)
+  const waiting = state.parked.reduce((s, p) => s + p.amount, 0) // offline-received, not claimed yet
   const inTransit = state.inflight.filter((f) => f.mint === state.active).reduce((s, f) => s + sumOf(f.proofs), 0)
 
   // Retry pending invoices when the app opens
@@ -544,6 +585,15 @@ export function useWallet() {
           /* network down: retry later */
         }
       }
+      if (typeof navigator === 'undefined' || navigator.onLine !== false)
+        for (const p of ref.current.parked) {
+          if (!alive) return
+          try {
+            await actions.claimParked(p)
+          } catch {
+            /* still offline / mint down: retry later */
+          }
+        }
       for (const f of ref.current.inflight) {
         if (!alive) return
         if (meltsInProgress.has(f.id)) continue // the payment is still running in this tab
@@ -576,5 +626,5 @@ export function useWallet() {
     }
   }, [actions, backend])
 
-  return { mode, setMode, backend, state, activeProofs, balance, inTransit, total, fx, actions, amountOf }
+  return { mode, setMode, backend, state, activeProofs, balance, inTransit, waiting, total, fx, actions, amountOf }
 }

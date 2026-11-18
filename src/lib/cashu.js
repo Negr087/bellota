@@ -7,6 +7,10 @@ import {
   getTokenMetadata,
   serializeProofs,
   deserializeProofs,
+  hasValidDleq,
+  parseP2PKSecret,
+  getP2PKExpectedWitnessPubkeys,
+  getPubKeyFromPrivKey,
 } from '@cashu/cashu-ts'
 import { seedStore, counterSource } from './seed.js'
 
@@ -67,6 +71,31 @@ function cachedWallet(mintUrl) {
   const w = newWallet(mintUrl)
   w.loadMintFromCache(c.info, c.keys)
   return w
+}
+
+// 🔑 This wallet's P2PK key (NUT-11), derived from the seed so every device with the same
+// 12 words can claim ecash locked to it. Payment requests can ask payers to lock to it.
+const hex = (b) => [...b].map((x) => x.toString(16).padStart(2, '0')).join('')
+let p2pkCache = null
+async function p2pkKeys() {
+  const seed = seedStore.seedBytes()
+  if (!seed) return null
+  if (p2pkCache?.seed === seed) return p2pkCache
+  const tag = new TextEncoder().encode('bellota/p2pk/0')
+  const priv = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...tag, ...seed])))
+  p2pkCache = { seed, priv: hex(priv), pub: hex(getPubKeyFromPrivKey(priv)) }
+  return p2pkCache
+}
+
+// Reads a P2PK secret: null if the proof isn't locked.
+function lockOf(secret) {
+  try {
+    const [, data] = parseP2PKSecret(secret)
+    const tags = Object.fromEntries((data.tags || []).map(([k, ...v]) => [k, v]))
+    return { keys: getP2PKExpectedWitnessPubkeys(secret).map((k) => k.toLowerCase()), locktime: tags.locktime ? Number(tags.locktime[0]) : null }
+  } catch {
+    return null
+  }
 }
 
 // Picks coins that add up to exactly `amount` (+ the fee the receiver pays to swap them).
@@ -275,8 +304,48 @@ export const realBackend = {
     const meta = getTokenMetadata(clean)
     if (meta.unit && meta.unit !== 'sat') throw new Error(`Only sats are supported for now (this token is in ${meta.unit}).`)
     const w = await getWallet(meta.mint)
-    const proofs = await w.receive(clean)
+    // Locked to my key? Sign it so the mint lets me swap it.
+    const locked = w.decodeToken(clean).proofs.some((p) => lockOf(p.secret))
+    const keys = locked ? await p2pkKeys() : null
+    const proofs = await w.receive(clean, keys ? { privkey: keys.priv } : undefined)
     return { mint: meta.mint, proofs }
+  },
+
+  p2pkPubkey: async () => (await p2pkKeys())?.pub ?? null,
+
+  // 📴 What can be known about a token without the mint (NUT-12 DLEQ + NUT-11 locks):
+  // { mint, amount, memo, known, dleq: 'ok'|'missing'|'bad'|'unknown', lock: 'me'|'other'|'none'|'mixed', locktime }
+  async checkOffline(token) {
+    const clean = token.trim()
+    const meta = getTokenMetadata(clean)
+    const base = { mint: meta.mint.replace(/\/+$/, ''), amount: amountOf(meta.amount), memo: meta.memo, unit: meta.unit || 'sat' }
+    let w
+    try {
+      w = cachedWallet(base.mint)
+    } catch {
+      return { ...base, known: false, dleq: 'unknown', lock: 'unknown', locktime: null }
+    }
+    const proofs = w.decodeToken(clean).proofs
+    let dleq = 'ok'
+    for (const p of proofs) {
+      if (!p.dleq) {
+        dleq = dleq === 'bad' ? 'bad' : 'missing'
+        continue
+      }
+      let ok = false
+      try {
+        ok = hasValidDleq(p, w.keyChain.getKeyset(p.id), { require: true })
+      } catch {
+        ok = false
+      }
+      if (!ok) dleq = 'bad'
+    }
+    const me = (await p2pkKeys())?.pub?.toLowerCase()
+    const locks = proofs.map((p) => lockOf(p.secret))
+    const mine = (l) => l && me && l.keys.includes(me)
+    const lock = locks.every((l) => !l) ? 'none' : locks.every(mine) ? 'me' : locks.some((l) => l && !mine(l)) ? 'other' : 'mixed'
+    const locktime = locks.reduce((t, l) => (l?.locktime ? Math.min(t ?? Infinity, l.locktime) : t), null)
+    return { ...base, known: true, dleq, lock, locktime }
   },
 
   // 🌰 → token  Send ecash

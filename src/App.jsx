@@ -281,6 +281,7 @@ export default function App() {
             {syncBusy ? '⏳ Syncing…' : '🔄 Sync'}
           </button>
         )}
+        {w.waiting > 0 && <span className="meta transit">📴 {fmtSats(w.waiting)} sats received offline, claimed when you're back online</span>}
         {w.inTransit > 0 && <span className="meta transit">⏳ {fmtSats(w.inTransit)} sats in transit (Lightning payment not confirmed yet)</span>}
       </section>
 
